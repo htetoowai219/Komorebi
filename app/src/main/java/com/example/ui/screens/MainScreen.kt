@@ -32,6 +32,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import android.content.ClipboardManager
+import android.content.ClipData
+import android.content.Context
+import android.widget.Toast
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.border
+import kotlinx.coroutines.launch
 import com.example.data.Chapter
 import com.example.data.VocabItem
 import com.example.ui.viewmodel.MainViewModel
@@ -49,9 +57,23 @@ fun MainScreen(
     val intervalMinutes by viewModel.intervalMinutes.collectAsState()
     val cycleMode by viewModel.cycleMode.collectAsState()
     val simulatedItem by viewModel.simulatedItem.collectAsState()
+    val isScheduleModeEnabled by viewModel.isScheduleModeEnabled.collectAsState()
+    val dayChapterAssignments by viewModel.dayChapterAssignments.collectAsState()
 
-    var currentTab by remember { mutableStateOf(0) } // 0 = Chapters, 1 = Items, 2 = Widget Config
+    var currentTab by remember { mutableStateOf(0) } // 0 = Chapters, 1 = Items, 2 = Schedule, 3 = Widget Config
     
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    // Search & Settings State
+    var isSearchActive by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var showSettingsDialog by remember { mutableStateOf(false) }
+
+    // Share / Import State
+    var exportChapterName by remember { mutableStateOf<String?>(null) }
+    var exportedShareCode by remember { mutableStateOf<String?>(null) }
+
     // Dialog Triggers
     var showAddChapterDialog by remember { mutableStateOf(false) }
     var showAddItemDialog by remember { mutableStateOf(false) }
@@ -62,65 +84,125 @@ fun MainScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.statusBars)
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+            if (isSearchActive) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary),
-                        contentAlignment = Alignment.Center
+                    IconButton(
+                        onClick = {
+                            isSearchActive = false
+                            searchQuery = ""
+                        },
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Book,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp)
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
-                    Text(
-                        text = "Komorebi",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Medium,
-                        letterSpacing = (-0.5).sp,
-                        color = MaterialTheme.colorScheme.onBackground
+                    Spacer(modifier = Modifier.width(8.dp))
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text("Search Japanese words...", fontSize = 14.sp) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.outline
+                            )
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Clear",
+                                        tint = MaterialTheme.colorScheme.outline
+                                    )
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        ),
+                        shape = RoundedCornerShape(24.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .testTag("top_search_input")
                     )
                 }
-
+            } else {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    IconButton(
-                        onClick = { /* Search action */ },
-                        modifier = Modifier.size(36.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Book,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Text(
+                            text = "Komorebi",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = (-0.5).sp,
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                     }
-                    IconButton(
-                        onClick = { /* Settings action */ },
-                        modifier = Modifier.size(36.dp)
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        IconButton(
+                            onClick = { isSearchActive = true },
+                            modifier = Modifier.size(36.dp).testTag("top_search_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = { showSettingsDialog = true },
+                            modifier = Modifier.size(36.dp).testTag("top_settings_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Settings",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -147,6 +229,13 @@ fun MainScreen(
                 NavigationBarItem(
                     selected = currentTab == 2,
                     onClick = { currentTab = 2 },
+                    icon = { Icon(Icons.Outlined.CalendarMonth, contentDescription = "Schedule") },
+                    label = { Text("Schedule") },
+                    modifier = Modifier.testTag("tab_schedule")
+                )
+                NavigationBarItem(
+                    selected = currentTab == 3,
+                    onClick = { currentTab = 3 },
                     icon = { Icon(Icons.Outlined.Widgets, contentDescription = "Widget Config") },
                     label = { Text("Lockscreen") },
                     modifier = Modifier.testTag("tab_widget")
@@ -186,24 +275,44 @@ fun MainScreen(
                 0 -> ChaptersTabContent(
                     chapters = chapters,
                     selectedChapterId = selectedChapterId,
+                    searchQuery = searchQuery,
                     onSelectChapter = { id ->
                         viewModel.selectChapter(id)
                         currentTab = 1 // Smoothly jump to items when chapter is clicked
                     },
                     onToggleExposure = { viewModel.toggleChapterExposure(it) },
-                    onDeleteChapter = { viewModel.deleteChapter(it) }
+                    onDeleteChapter = { viewModel.deleteChapter(it) },
+                    onExportChapter = { chapter ->
+                        scope.launch {
+                            val code = viewModel.exportChapter(chapter.id)
+                            if (code.isNotEmpty()) {
+                                exportedShareCode = code
+                                exportChapterName = chapter.name
+                            } else {
+                                Toast.makeText(context, "Error exporting chapter.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
                 )
                 1 -> ItemsTabContent(
                     items = items,
                     activeChapterName = activeChapterName,
                     chapters = chapters,
                     selectedChapterId = selectedChapterId,
+                    searchQuery = searchQuery,
                     onSelectChapter = { viewModel.selectChapter(it) },
                     onToggleExposure = { viewModel.toggleItemExposure(it) },
                     onEditItem = { itemToEdit = it },
                     onDeleteItem = { viewModel.deleteItem(it) }
                 )
-                2 -> WidgetSettingsTabContent(
+                2 -> ScheduleTabContent(
+                    chapters = chapters,
+                    isScheduleEnabled = isScheduleModeEnabled,
+                    assignments = dayChapterAssignments,
+                    onToggleSchedule = { viewModel.setScheduleModeEnabled(it) },
+                    onAssign = { day, chId -> viewModel.assignChapterToDay(day, chId) }
+                )
+                3 -> WidgetSettingsTabContent(
                     exposedCount = exposedCount,
                     intervalMinutes = intervalMinutes,
                     cycleMode = cycleMode,
@@ -223,6 +332,27 @@ fun MainScreen(
             onConfirm = { name ->
                 viewModel.addChapter(name)
                 showAddChapterDialog = false
+            },
+            onImportConfirm = { shareCode, onResult ->
+                scope.launch {
+                    val success = viewModel.importChapter(shareCode)
+                    onResult(success)
+                    if (success) {
+                        Toast.makeText(context, "Chapter imported successfully!", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        )
+    }
+
+    // Dialog: Export Chapter (Share)
+    if (exportedShareCode != null && exportChapterName != null) {
+        ExportChapterDialog(
+            chapterName = exportChapterName!!,
+            shareCode = exportedShareCode!!,
+            onDismiss = {
+                exportedShareCode = null
+                exportChapterName = null
             }
         )
     }
@@ -232,8 +362,8 @@ fun MainScreen(
         AddEditItemDialog(
             title = "Add New Word",
             onDismiss = { showAddItemDialog = false },
-            onConfirm = { word, reading, meaning, type, notes ->
-                viewModel.addItem(word, reading, meaning, type, notes)
+            onConfirm = { word, reading, meaning, type, notes, exampleSentence ->
+                viewModel.addItem(word, reading, meaning, type, notes, exampleSentence)
                 showAddItemDialog = false
             }
         )
@@ -248,10 +378,25 @@ fun MainScreen(
             initialMeaning = item.meaning,
             initialType = item.type,
             initialNotes = item.notes,
+            initialExampleSentence = item.exampleSentence,
             onDismiss = { itemToEdit = null },
-            onConfirm = { word, reading, meaning, type, notes ->
-                viewModel.updateItem(item.copy(word = word, reading = reading, meaning = meaning, type = type, notes = notes))
+            onConfirm = { word, reading, meaning, type, notes, exampleSentence ->
+                viewModel.updateItem(item.copy(word = word, reading = reading, meaning = meaning, type = type, notes = notes, exampleSentence = exampleSentence))
                 itemToEdit = null
+            }
+        )
+    }
+
+    if (showSettingsDialog) {
+        SettingsDialog(
+            onDismiss = { showSettingsDialog = false },
+            onPreload = {
+                viewModel.preloadSampleData()
+                showSettingsDialog = false
+            },
+            onReset = {
+                viewModel.resetDatabase()
+                showSettingsDialog = false
             }
         )
     }
@@ -264,15 +409,31 @@ fun MainScreen(
 fun ChaptersTabContent(
     chapters: List<Chapter>,
     selectedChapterId: Int?,
+    searchQuery: String = "",
     onSelectChapter: (Int) -> Unit,
     onToggleExposure: (Chapter) -> Unit,
-    onDeleteChapter: (Chapter) -> Unit
+    onDeleteChapter: (Chapter) -> Unit,
+    onExportChapter: (Chapter) -> Unit
 ) {
+    val filteredChapters = remember(chapters, searchQuery) {
+        if (searchQuery.isBlank()) {
+            chapters
+        } else {
+            chapters.filter { it.name.contains(searchQuery, ignoreCase = true) }
+        }
+    }
+
     if (chapters.isEmpty()) {
         EmptyStateView(
             icon = Icons.Outlined.FolderOpen,
             title = "No Chapters Yet",
             description = "Chapters let you segment vocabularies (e.g. 'Genki Ch 1', 'N5 Verbs'). Tap the '+' button below to create your first chapter."
+        )
+    } else if (filteredChapters.isEmpty()) {
+        EmptyStateView(
+            icon = Icons.Outlined.SearchOff,
+            title = "No Chapters Found",
+            description = "No chapters matched your search query '$searchQuery'. Try checking for typos or searching something else."
         )
     } else {
         LazyColumn(
@@ -282,21 +443,22 @@ fun ChaptersTabContent(
         ) {
             item {
                 Text(
-                    text = "Manage Chapters",
+                    text = if (searchQuery.isBlank()) "Manage Chapters" else "Search Results",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
             }
 
-            items(chapters, key = { it.id }) { chapter ->
+            items(filteredChapters, key = { it.id }) { chapter ->
                 val isSelected = chapter.id == selectedChapterId
                 ChapterCard(
                     chapter = chapter,
                     isSelected = isSelected,
                     onSelect = { onSelectChapter(chapter.id) },
                     onToggleExposure = { onToggleExposure(chapter) },
-                    onDelete = { onDeleteChapter(chapter) }
+                    onDelete = { onDeleteChapter(chapter) },
+                    onExport = { onExportChapter(chapter) }
                 )
             }
         }
@@ -309,7 +471,8 @@ fun ChapterCard(
     isSelected: Boolean,
     onSelect: () -> Unit,
     onToggleExposure: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onExport: () -> Unit
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
@@ -404,6 +567,19 @@ fun ChapterCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
+                // Export Button
+                IconButton(
+                    onClick = onExport,
+                    modifier = Modifier.size(40.dp).testTag("chapter_export_button_${chapter.id}")
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Share,
+                        contentDescription = "Share Chapter",
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
                 // Exposure toggle icon (visibility)
                 IconButton(
                     onClick = onToggleExposure,
@@ -471,6 +647,7 @@ fun ItemsTabContent(
     activeChapterName: String,
     chapters: List<Chapter>,
     selectedChapterId: Int?,
+    searchQuery: String = "",
     onSelectChapter: (Int) -> Unit,
     onToggleExposure: (VocabItem) -> Unit,
     onEditItem: (VocabItem) -> Unit,
@@ -571,19 +748,37 @@ fun ItemsTabContent(
             )
         }
 
-        val filteredItems = items.filter {
-            when (selectedTypeFilter) {
-                "vocab" -> it.type == "vocab"
-                "kanji" -> it.type == "kanji"
-                else -> true
+        val filteredItems = remember(items, searchQuery, selectedTypeFilter) {
+            val typeFiltered = items.filter {
+                when (selectedTypeFilter) {
+                    "vocab" -> it.type == "vocab"
+                    "kanji" -> it.type == "kanji"
+                    else -> true
+                }
+            }
+            if (searchQuery.isBlank()) {
+                typeFiltered
+            } else {
+                typeFiltered.filter {
+                    it.word.contains(searchQuery, ignoreCase = true) ||
+                    it.reading.contains(searchQuery, ignoreCase = true) ||
+                    it.meaning.contains(searchQuery, ignoreCase = true) ||
+                    it.notes.contains(searchQuery, ignoreCase = true)
+                }
             }
         }
 
-        if (filteredItems.isEmpty()) {
+        if (items.isEmpty()) {
             EmptyStateView(
                 icon = Icons.Outlined.Spellcheck,
-                title = "No Words in Filter",
+                title = "No Words Yet",
                 description = "Tap the '+' button below to add custom words, hiragana reading, and translation definitions to this chapter."
+            )
+        } else if (filteredItems.isEmpty()) {
+            EmptyStateView(
+                icon = Icons.Outlined.SearchOff,
+                title = "No Matching Words",
+                description = "We couldn't find any words matching '$searchQuery' in this chapter. Try searching something else."
             )
         } else {
             LazyColumn(
@@ -748,7 +943,7 @@ fun VocabItemRow(
 
                     if (item.notes.isNotBlank()) {
                         Text(
-                            text = "Notes / Sentences",
+                            text = "Notes",
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.outline,
                             fontWeight = FontWeight.Bold
@@ -757,6 +952,22 @@ fun VocabItemRow(
                             text = item.notes,
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+
+                    if (item.exampleSentence.isNotBlank()) {
+                        Text(
+                            text = "Example Sentence",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.outline,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = item.exampleSentence,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Medium,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
                     }
@@ -1156,8 +1367,10 @@ fun EmptyStateView(
 @Composable
 fun AddChapterDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
+    onConfirm: (String) -> Unit,
+    onImportConfirm: (String, (Boolean) -> Unit) -> Unit
 ) {
+    var selectedTab by remember { mutableStateOf(0) } // 0 = Create, 1 = Import
     var name by remember { mutableStateOf("") }
     var isError by remember { mutableStateOf(false) }
 
@@ -1174,57 +1387,149 @@ fun AddChapterDialog(
                     .padding(20.dp)
             ) {
                 Text(
-                    text = "Add New Chapter",
+                    text = if (selectedTab == 0) "Add New Chapter" else "Import Shared Chapter",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = {
-                        name = it
-                        if (it.isNotBlank()) isError = false
-                    },
-                    label = { Text("Chapter Name") },
-                    placeholder = { Text("e.g. Genki Chapter 1") },
-                    isError = isError,
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().testTag("dialog_chapter_input")
-                )
-
-                if (isError) {
-                    Text(
-                        text = "Name cannot be blank.",
-                        color = MaterialTheme.colorScheme.error,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 4.dp)
+                // Segmented control or choice buttons
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterTabButton(
+                        text = "New Chapter",
+                        selected = selectedTab == 0,
+                        onClick = { selectedTab = 0 },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterTabButton(
+                        text = "Import Code",
+                        selected = selectedTab == 1,
+                        onClick = { selectedTab = 1 },
+                        modifier = Modifier.weight(1f)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text("Cancel")
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            if (name.isNotBlank()) {
-                                onConfirm(name.trim())
-                            } else {
-                                isError = true
-                            }
+                if (selectedTab == 0) {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = {
+                            name = it
+                            if (it.isNotBlank()) isError = false
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                        modifier = Modifier.testTag("dialog_chapter_confirm")
+                        label = { Text("Chapter Name") },
+                        placeholder = { Text("e.g. Genki Chapter 1") },
+                        isError = isError,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().testTag("dialog_chapter_input")
+                    )
+
+                    if (isError) {
+                        Text(
+                            text = "Name cannot be blank.",
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
                     ) {
-                        Text("Create")
+                        TextButton(onClick = onDismiss) {
+                            Text("Cancel")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                if (name.isNotBlank()) {
+                                    onConfirm(name.trim())
+                                } else {
+                                    isError = true
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            modifier = Modifier.testTag("dialog_chapter_confirm")
+                        ) {
+                            Text("Create")
+                        }
+                    }
+                } else {
+                    var shareCode by remember { mutableStateOf("") }
+                    var importError by remember { mutableStateOf<String?>(null) }
+                    val scope = rememberCoroutineScope()
+
+                    Column {
+                        Text(
+                            text = "Paste the shared chapter code below to import it.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        OutlinedTextField(
+                            value = shareCode,
+                            onValueChange = {
+                                shareCode = it
+                                importError = null
+                            },
+                            label = { Text("Shared Chapter Code") },
+                            placeholder = { Text("Paste long code here...") },
+                            isError = importError != null,
+                            maxLines = 5,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .testTag("dialog_chapter_import_input")
+                        )
+
+                        if (importError != null) {
+                            Text(
+                                text = importError ?: "",
+                                color = MaterialTheme.colorScheme.error,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(onClick = onDismiss) {
+                                Text("Cancel")
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(
+                                onClick = {
+                                    if (shareCode.trim().isBlank()) {
+                                        importError = "Code cannot be empty."
+                                    } else {
+                                        onImportConfirm(shareCode.trim()) { success ->
+                                            if (success) {
+                                                onDismiss()
+                                            } else {
+                                                importError = "Invalid code. Please make sure you copied it correctly."
+                                            }
+                                        }
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                modifier = Modifier.testTag("dialog_chapter_import_confirm")
+                            ) {
+                                Text("Import")
+                            }
+                        }
                     }
                 }
             }
@@ -1241,14 +1546,16 @@ fun AddEditItemDialog(
     initialMeaning: String = "",
     initialType: String = "vocab",
     initialNotes: String = "",
+    initialExampleSentence: String = "",
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String, String, String) -> Unit
+    onConfirm: (String, String, String, String, String, String) -> Unit
 ) {
     var word by remember { mutableStateOf(initialWord) }
     var reading by remember { mutableStateOf(initialReading) }
     var meaning by remember { mutableStateOf(initialMeaning) }
     var type by remember { mutableStateOf(initialType) } // "vocab" or "kanji"
     var notes by remember { mutableStateOf(initialNotes) }
+    var exampleSentence by remember { mutableStateOf(initialExampleSentence) }
 
     var isWordError by remember { mutableStateOf(false) }
     var isReadingError by remember { mutableStateOf(false) }
@@ -1356,10 +1663,22 @@ fun AddEditItemDialog(
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
-                    label = { Text("Notes & Sentences (Optional)") },
-                    placeholder = { Text("e.g. Used for counting days.") },
+                    label = { Text("Notes (Optional)") },
+                    placeholder = { Text("e.g. Ru-verb, used for eating.") },
                     maxLines = 2,
                     modifier = Modifier.fillMaxWidth().testTag("dialog_item_notes_input")
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Example Sentence (Optional)
+                OutlinedTextField(
+                    value = exampleSentence,
+                    onValueChange = { exampleSentence = it },
+                    label = { Text("Example Sentence (Optional)") },
+                    placeholder = { Text("e.g. ご飯を食べる。") },
+                    maxLines = 2,
+                    modifier = Modifier.fillMaxWidth().testTag("dialog_item_example_input")
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -1380,7 +1699,7 @@ fun AddEditItemDialog(
                             if (meaning.isBlank()) { isMeaningError = true; hasError = true }
 
                             if (!hasError) {
-                                onConfirm(word.trim(), reading.trim(), meaning.trim(), type, notes.trim())
+                                onConfirm(word.trim(), reading.trim(), meaning.trim(), type, notes.trim(), exampleSentence.trim())
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
@@ -1393,3 +1712,543 @@ fun AddEditItemDialog(
         }
     }
 }
+
+@Composable
+fun SettingsDialog(
+    onDismiss: () -> Unit,
+    onPreload: () -> Unit,
+    onReset: () -> Unit
+) {
+    var showResetConfirm by remember { mutableStateOf(false) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp)
+                .testTag("settings_dialog"),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                // Title
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "App Settings",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Scrollable content
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // About
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = "Komorebi v1.1.0",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "A passive learning tool that cycles custom Japanese vocabularies & Kanji on your home screen or lock screen widgets.",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    lineHeight = 16.sp
+                                )
+                            }
+                        }
+                    }
+
+                    // How to use widget
+                    item {
+                        Column {
+                            Text(
+                                text = "How to Setup Widget",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "1. Go to your Android Home Screen.\n" +
+                                       "2. Press and hold on an empty space.\n" +
+                                       "3. Select 'Widgets' (or 'Add widgets').\n" +
+                                       "4. Search or scroll to find 'Komorebi'.\n" +
+                                       "5. Drag the widget onto your home screen or lockscreen slot.",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                lineHeight = 18.sp
+                            )
+                        }
+                    }
+
+                    // SQLite & Data management
+                    item {
+                        Column {
+                            Text(
+                                text = "Database & Seed Utilities",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Manage the local SQLite database storing your Japanese word lists.",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.outline,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+
+                            // Preload Button
+                            Button(
+                                onClick = onPreload,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Preload Sample Vocabulary List", fontSize = 13.sp)
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Reset Button
+                            OutlinedButton(
+                                onClick = { showResetConfirm = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Wipe / Reset Local Database", fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Footer Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Close")
+                    }
+                }
+            }
+        }
+    }
+
+    if (showResetConfirm) {
+        AlertDialog(
+            onDismissRequest = { showResetConfirm = false },
+            title = { Text("Reset Database?") },
+            text = { Text("Are you sure you want to completely erase your Japanese vocabulary database? This action is permanent and will delete all custom lists, chapters, and items.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onReset()
+                        showResetConfirm = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Reset Everything")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun ExportChapterDialog(
+    chapterName: String,
+    shareCode: String,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val clipboardManager = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .testTag("export_chapter_dialog"),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+            ) {
+                // Header
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Share Chapter",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Share your vocabulary lists of '$chapterName' with your friends using this compact share code.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 16.sp
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Scrollable Box for share code
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = shareCode,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.verticalScroll(rememberScrollState())
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Actions
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Close")
+                    }
+
+                    Button(
+                        onClick = {
+                            val clipData = ClipData.newPlainText("Komorebi Chapter Share Code", shareCode)
+                            clipboardManager.setPrimaryClip(clipData)
+                            Toast.makeText(context, "Share code copied to clipboard!", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Copy Code")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ScheduleTabContent(
+    chapters: List<Chapter>,
+    isScheduleEnabled: Boolean,
+    assignments: Map<Int, Int>,
+    onToggleSchedule: (Boolean) -> Unit,
+    onAssign: (Int, Int) -> Unit
+) {
+    val daysOfWeek = remember {
+        listOf(
+            1 to "Monday",
+            2 to "Tuesday",
+            3 to "Wednesday",
+            4 to "Thursday",
+            5 to "Friday",
+            6 to "Saturday",
+            7 to "Sunday"
+        )
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text(
+                text = "Daily Schedule Planner",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = "Assign a specific chapter to each day of the week to automatically filter widget items.",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+
+        // Toggle Switch Card
+        item {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                ),
+                modifier = Modifier.fillMaxWidth().testTag("schedule_mode_toggle_card")
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DateRange,
+                            contentDescription = null,
+                            tint = if (isScheduleEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                        )
+                        Column {
+                            Text(
+                                text = "Schedule Mode",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (isScheduleEnabled) "Active (Filtering by Day)" else "Disabled (Rotating All Exposed)",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                        }
+                    }
+                    Switch(
+                        checked = isScheduleEnabled,
+                        onCheckedChange = onToggleSchedule,
+                        modifier = Modifier.testTag("schedule_mode_switch")
+                    )
+                }
+            }
+        }
+
+        item {
+            Text(
+                text = "Weekly Assignments",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+        }
+
+        // 7 Days list
+        items(daysOfWeek) { (dayNum, dayName) ->
+            val assignedChapterId = assignments[dayNum] ?: -1
+            val assignedChapter = chapters.find { it.id == assignedChapterId }
+            var showDropdown by remember { mutableStateOf(false) }
+
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (assignedChapter != null && isScheduleEnabled) {
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    }
+                ),
+                border = BorderStroke(
+                    1.dp,
+                    if (assignedChapter != null && isScheduleEnabled) {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                    } else {
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                    }
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable(enabled = isScheduleEnabled) { showDropdown = true }
+                    .testTag("schedule_day_card_$dayNum")
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        // Day initial badge
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isScheduleEnabled) {
+                                        if (assignedChapter != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)
+                                    } else {
+                                        MaterialTheme.colorScheme.outlineVariant
+                                    }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = dayName.take(1),
+                                color = if (assignedChapter != null && isScheduleEnabled) Color.White else MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                        }
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = dayName,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isScheduleEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            if (assignedChapter != null) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.FolderOpen,
+                                        contentDescription = null,
+                                        tint = if (isScheduleEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Text(
+                                        text = assignedChapter.name,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = if (isScheduleEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = "All Exposed (Fallback)",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.outline,
+                                    style = androidx.compose.ui.text.TextStyle(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+                                )
+                            }
+                        }
+                    }
+
+                    // Dropdown for choosing chapter
+                    Box {
+                        IconButton(
+                            onClick = { showDropdown = true },
+                            enabled = isScheduleEnabled,
+                            modifier = Modifier.testTag("day_assign_button_$dayNum")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Assign Chapter",
+                                tint = if (isScheduleEnabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showDropdown,
+                            onDismissRequest = { showDropdown = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("No Chapter Assigned (Rotate All)") },
+                                onClick = {
+                                    onAssign(dayNum, -1)
+                                    showDropdown = false
+                                }
+                            )
+                            HorizontalDivider()
+                            chapters.forEach { chapter ->
+                                DropdownMenuItem(
+                                    text = { Text(chapter.name) },
+                                    onClick = {
+                                        onAssign(dayNum, chapter.id)
+                                        showDropdown = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Calendar
 import kotlin.random.Random
 
 class VocabWidgetProvider : AppWidgetProvider() {
@@ -38,7 +39,24 @@ class VocabWidgetProvider : AppWidgetProvider() {
         super.onReceive(context, intent)
         Log.d("VocabWidgetProvider", "onReceive Action: ${intent.action}")
 
-        if (intent.action == ACTION_CYCLE_WORD || intent.action == ACTION_MANUAL_REFRESH) {
+        if (intent.action == ACTION_FLIP_CARD) {
+            val appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+            if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val isFlipped = prefs.getBoolean("widget_flipped_$appWidgetId", false)
+                prefs.edit().putBoolean("widget_flipped_$appWidgetId", !isFlipped).apply()
+
+                val appWidgetManager = AppWidgetManager.getInstance(context)
+                val pendingResult = goAsync()
+                CoroutineScope(Dispatchers.Default).launch {
+                    try {
+                        updateWidget(context, appWidgetManager, appWidgetId)
+                    } finally {
+                        pendingResult.finish()
+                    }
+                }
+            }
+        } else if (intent.action == ACTION_CYCLE_WORD || intent.action == ACTION_MANUAL_REFRESH) {
             val pendingResult = goAsync()
             CoroutineScope(Dispatchers.Default).launch {
                 try {
@@ -68,14 +86,48 @@ class VocabWidgetProvider : AppWidgetProvider() {
     companion object {
         const val ACTION_CYCLE_WORD = "com.example.widget.ACTION_CYCLE_WORD"
         const val ACTION_MANUAL_REFRESH = "com.example.widget.ACTION_MANUAL_REFRESH"
+        const val ACTION_FLIP_CARD = "com.example.widget.ACTION_FLIP_CARD"
 
         private const val PREFS_NAME = "widget_prefs"
         private const val KEY_CURRENT_ID = "current_vocab_id"
         private const val KEY_CYCLE_MODE = "cycle_mode" // "sequential" or "random"
 
-        suspend fun cycleWord(context: Context) = withContext(Dispatchers.IO) {
+        private fun getDayOfWeek1to7(): Int {
+            val calendar = Calendar.getInstance()
+            val javaDay = calendar.get(Calendar.DAY_OF_WEEK)
+            return when (javaDay) {
+                Calendar.MONDAY -> 1
+                Calendar.TUESDAY -> 2
+                Calendar.WEDNESDAY -> 3
+                Calendar.THURSDAY -> 4
+                Calendar.FRIDAY -> 5
+                Calendar.SATURDAY -> 6
+                Calendar.SUNDAY -> 7
+                else -> 1
+            }
+        }
+
+        private suspend fun getScheduledOrExposedItems(context: Context): List<VocabItem> {
             val dao = AppDatabase.getDatabase(context).appDao()
-            val exposedItems = dao.getExposedItems()
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val scheduleEnabled = prefs.getBoolean("schedule_mode_enabled", false)
+
+            if (scheduleEnabled) {
+                val day = getDayOfWeek1to7()
+                val assignedChapterId = prefs.getInt("schedule_day_$day", -1)
+                if (assignedChapterId != -1) {
+                    val chapterItems = dao.getItemsForChapterList(assignedChapterId)
+                    val exposedChapterItems = chapterItems.filter { it.isExposed }
+                    if (exposedChapterItems.isNotEmpty()) {
+                        return exposedChapterItems
+                    }
+                }
+            }
+            return dao.getExposedItems()
+        }
+
+        suspend fun cycleWord(context: Context) = withContext(Dispatchers.IO) {
+            val exposedItems = getScheduledOrExposedItems(context)
             if (exposedItems.isEmpty()) return@withContext
 
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -88,13 +140,11 @@ class VocabWidgetProvider : AppWidgetProvider() {
                 val currentIndex = exposedItems.indexOfFirst { it.id == currentId }
                 if (mode == "random") {
                     var nextIndex = Random.nextInt(exposedItems.size)
-                    // Ensure we pick a different word if possible
                     while (nextIndex == currentIndex && exposedItems.size > 1) {
                         nextIndex = Random.nextInt(exposedItems.size)
                     }
                     exposedItems[nextIndex]
                 } else {
-                    // Sequential rotation
                     val nextIndex = if (currentIndex == -1) 0 else (currentIndex + 1) % exposedItems.size
                     exposedItems[nextIndex]
                 }
@@ -111,18 +161,17 @@ class VocabWidgetProvider : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_vocab)
 
             val dao = AppDatabase.getDatabase(context).appDao()
-            val exposedItems = dao.getExposedItems()
+            val exposedItems = getScheduledOrExposedItems(context)
 
             if (exposedItems.isEmpty()) {
-                // Widget empty state styling
                 views.setTextViewText(R.id.txt_widget_word, "No words exposed")
                 views.setTextViewText(R.id.txt_widget_reading, "Tap to open manager")
                 views.setTextViewText(R.id.txt_widget_meaning, "Add vocabulary & chapters, and toggle exposure.")
                 views.setViewVisibility(R.id.txt_widget_type, View.GONE)
                 views.setViewVisibility(R.id.txt_widget_chapter, View.GONE)
                 views.setViewVisibility(R.id.btn_widget_refresh, View.GONE)
+                views.setViewVisibility(R.id.btn_widget_flip, View.GONE)
 
-                // On empty widget click, redirect user to the app
                 val appIntent = Intent(context, MainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                 }
@@ -137,29 +186,52 @@ class VocabWidgetProvider : AppWidgetProvider() {
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 val currentId = prefs.getInt(KEY_CURRENT_ID, -1)
 
-                // Select the active vocabulary card
                 var activeItem = exposedItems.find { it.id == currentId }
                 if (activeItem == null) {
                     activeItem = exposedItems.first()
                     prefs.edit().putInt(KEY_CURRENT_ID, activeItem.id).apply()
                 }
 
-                // Populate widget text fields
-                views.setTextViewText(R.id.txt_widget_word, activeItem.word)
-                views.setTextViewText(R.id.txt_widget_reading, activeItem.reading)
-                views.setTextViewText(R.id.txt_widget_meaning, activeItem.meaning)
-                
                 views.setViewVisibility(R.id.txt_widget_type, View.VISIBLE)
                 views.setViewVisibility(R.id.txt_widget_chapter, View.VISIBLE)
                 views.setViewVisibility(R.id.btn_widget_refresh, View.VISIBLE)
-                
+                views.setViewVisibility(R.id.btn_widget_flip, View.VISIBLE)
+
                 views.setTextViewText(R.id.txt_widget_type, activeItem.type.uppercase())
 
-                // Retrieve and bind Chapter details
                 val chapter = dao.getChapterById(activeItem.chapterId)
                 views.setTextViewText(R.id.txt_widget_chapter, chapter?.name ?: "General")
 
-                // Wire manual refresh action to trigger manual rotation intent
+                val isFlipped = prefs.getBoolean("widget_flipped_$appWidgetId", false)
+                if (isFlipped) {
+                    views.setViewVisibility(R.id.layout_widget_front, View.GONE)
+                    views.setViewVisibility(R.id.layout_widget_back, View.VISIBLE)
+
+                    val headerText = if (activeItem.reading.isNotBlank()) {
+                        "${activeItem.word} [${activeItem.reading}]"
+                    } else {
+                        activeItem.word
+                    }
+                    views.setTextViewText(R.id.txt_widget_back_header, headerText)
+
+                    val notesText = if (activeItem.notes.isNotBlank()) activeItem.notes else "No notes available."
+                    views.setTextViewText(R.id.txt_widget_notes, notesText)
+
+                    if (activeItem.exampleSentence.isNotBlank()) {
+                        views.setViewVisibility(R.id.txt_widget_example, View.VISIBLE)
+                        views.setTextViewText(R.id.txt_widget_example, activeItem.exampleSentence)
+                    } else {
+                        views.setViewVisibility(R.id.txt_widget_example, View.GONE)
+                    }
+                } else {
+                    views.setViewVisibility(R.id.layout_widget_front, View.VISIBLE)
+                    views.setViewVisibility(R.id.layout_widget_back, View.GONE)
+
+                    views.setTextViewText(R.id.txt_widget_word, activeItem.word)
+                    views.setTextViewText(R.id.txt_widget_reading, activeItem.reading)
+                    views.setTextViewText(R.id.txt_widget_meaning, activeItem.meaning)
+                }
+
                 val refreshIntent = Intent(context, VocabWidgetProvider::class.java).apply {
                     action = ACTION_MANUAL_REFRESH
                 }
@@ -171,7 +243,18 @@ class VocabWidgetProvider : AppWidgetProvider() {
                 )
                 views.setOnClickPendingIntent(R.id.btn_widget_refresh, refreshPendingIntent)
 
-                // Wire overall widget background click to launch the Main app
+                val flipIntent = Intent(context, VocabWidgetProvider::class.java).apply {
+                    action = ACTION_FLIP_CARD
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                }
+                val flipPendingIntent = PendingIntent.getBroadcast(
+                    context,
+                    appWidgetId + 3000,
+                    flipIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                views.setOnClickPendingIntent(R.id.btn_widget_flip, flipPendingIntent)
+
                 val appIntent = Intent(context, MainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                 }
@@ -184,7 +267,6 @@ class VocabWidgetProvider : AppWidgetProvider() {
                 views.setOnClickPendingIntent(R.id.widget_root, pendingIntent)
             }
 
-            // Commit views update
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
     }

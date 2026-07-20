@@ -21,9 +21,15 @@ interface AppDao {
     @Delete
     suspend fun deleteChapter(chapter: Chapter)
 
+    @Query("DELETE FROM chapters")
+    suspend fun deleteAllChapters()
+
     // Vocab / Kanji Items
     @Query("SELECT * FROM vocab_items WHERE chapterId = :chapterId ORDER BY createdAt DESC")
     fun getItemsForChapter(chapterId: Int): Flow<List<VocabItem>>
+
+    @Query("SELECT * FROM vocab_items WHERE chapterId = :chapterId ORDER BY createdAt DESC")
+    suspend fun getItemsForChapterList(chapterId: Int): List<VocabItem>
 
     @Query("SELECT * FROM vocab_items ORDER BY createdAt DESC")
     fun getAllItems(): Flow<List<VocabItem>>

@@ -33,6 +33,7 @@ data class VocabItem(
     val meaning: String,          // e.g. "Japanese", "Dog", "to eat", "Day / Sun"
     val type: String,             // "vocab" or "kanji"
     val notes: String = "",        // any notes or sample sentences
+    val exampleSentence: String = "", // dedicated field for example sentence
     val isExposed: Boolean = true, // individual exposure toggle
     val createdAt: Long = System.currentTimeMillis()
 )
