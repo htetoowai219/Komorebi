@@ -1,0 +1,6 @@
+{
+  "name": "Japanese Lockscreen Widget",
+  "description": "An Android application that allows users to create custom Japanese vocabulary and Kanji lists, group them by chapters, and expose them on a lockscreen/homescreen widget that rotates periodically.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

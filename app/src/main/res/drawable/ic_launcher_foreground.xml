@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Red Rising Sun (Centered, slightly higher) -->
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M54,48m-16,0a16,16 0,1 1,32 0a16,16 0,1 1,-32 0" />
+
+    <!-- Torii Gate (White / Foreground accent) -->
+    <!-- Pillars -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M39.5,44 L43.5,44 L41.5,74 L37.5,74 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M64.5,44 L68.5,44 L66.5,74 L62.5,74 Z" />
+
+    <!-- Top curved beam (Kasagi) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,34 C44,35 64,35 78,34 C80,34 81,36 79,37 C73,40 35,40 29,37 C27,36 28,34 30,34 Z" />
+
+    <!-- Second horizontal beam (Nuki) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M34,44 L74,44 L74,47 L34,47 Z" />
+
+    <!-- Center vertical support piece (Gakuzuka) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M52.5,38 L55.5,38 L55.5,44 L52.5,44 Z" />
+
+</vector>
