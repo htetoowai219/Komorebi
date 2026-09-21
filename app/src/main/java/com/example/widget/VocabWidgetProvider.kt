@@ -22,6 +22,18 @@ import kotlin.random.Random
 
 class VocabWidgetProvider : AppWidgetProvider() {
 
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        // First widget placed on the home screen: make sure the rotation alarm is running.
+        WidgetScheduleHelper.ensureScheduled(context)
+    }
+
+    override fun onDisabled(context: Context) {
+        super.onDisabled(context)
+        // Last widget removed: stop the rotation alarm to save battery.
+        WidgetScheduleHelper.cancelWidgetUpdate(context)
+    }
+
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.Default).launch {
@@ -38,6 +50,12 @@ class VocabWidgetProvider : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         Log.d("VocabWidgetProvider", "onReceive Action: ${intent.action}")
+
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
+            // Alarms are cleared on reboot, so reschedule the widget rotation.
+            WidgetScheduleHelper.ensureScheduled(context)
+            return
+        }
 
         if (intent.action == ACTION_FLIP_CARD) {
             val appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)

@@ -5,13 +5,22 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.AiImportUiState
+import com.example.data.AiVocabDraft
 import com.example.data.AppDatabase
 import com.example.data.AppRepository
 import com.example.data.Chapter
+import com.example.data.GeminiApi
+import com.example.data.GeminiKeyStore
 import com.example.data.VocabItem
+import java.io.ByteArrayOutputStream
+import kotlinx.coroutines.CancellationException
 import com.example.widget.VocabWidgetProvider
 import com.example.widget.WidgetScheduleHelper
 import kotlinx.coroutines.Dispatchers
@@ -27,9 +36,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: AppRepository
     private val prefs = application.getSharedPreferences("widget_prefs", Context.MODE_PRIVATE)
+    private val geminiKeyStore = GeminiKeyStore(application)
 
     val allChapters: StateFlow<List<Chapter>>
     val exposedItemsCount: StateFlow<Int>
+
+    // Gemini AI
+    private val _geminiKey = MutableStateFlow(geminiKeyStore.getKey())
+    val geminiKey: StateFlow<String?> = _geminiKey.asStateFlow()
+
+    private val _showApiKeyDialog = MutableStateFlow(_geminiKey.value == null)
+    val showApiKeyDialog: StateFlow<Boolean> = _showApiKeyDialog.asStateFlow()
+
+    // AI Photo Import state
+    private val _aiImportState = MutableStateFlow<AiImportUiState>(AiImportUiState.Idle)
+    val aiImportState: StateFlow<AiImportUiState> = _aiImportState.asStateFlow()
+
+    private val _aiTitle = MutableStateFlow("")
+    val aiTitle: StateFlow<String> = _aiTitle.asStateFlow()
+
+    private val _aiItems = MutableStateFlow<List<AiVocabDraft>>(emptyList())
+    val aiItems: StateFlow<List<AiVocabDraft>> = _aiItems.asStateFlow()
+
+    private var lastAiImageBytes: ByteArray? = null
+    private var lastAiImageMime = "image/jpeg"
 
     private val _selectedChapterId = MutableStateFlow<Int?>(null)
     val selectedChapterId: StateFlow<Int?> = _selectedChapterId.asStateFlow()
@@ -71,6 +101,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _simulatedItem = MutableStateFlow<VocabItem?>(null)
     val simulatedItem: StateFlow<VocabItem?> = _simulatedItem.asStateFlow()
 
+    private val _simulatedChapterName = MutableStateFlow<String?>(null)
+    val simulatedChapterName: StateFlow<String?> = _simulatedChapterName.asStateFlow()
+
     init {
         val appDao = AppDatabase.getDatabase(application).appDao()
         repository = AppRepository(appDao)
@@ -86,6 +119,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = 0
         )
+
+        // Ensure the widget rotation alarm is scheduled, even on first launch.
+        WidgetScheduleHelper.ensureScheduled(application)
 
         // Select the first chapter by default when loaded
         viewModelScope.launch {
@@ -203,6 +239,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val exposed = repository.getExposedItems()
         if (exposed.isEmpty()) {
             _simulatedItem.value = null
+            _simulatedChapterName.value = null
         } else {
             val currentId = prefs.getInt("current_vocab_id", -1)
             var active = exposed.find { it.id == currentId }
@@ -210,6 +247,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 active = exposed.first()
             }
             _simulatedItem.value = active
+            _simulatedChapterName.value = repository.getChapterById(active.chapterId)?.name
         }
     }
 
@@ -342,6 +380,174 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 e.printStackTrace()
                 false
             }
+        }
+    }
+
+    // ---------- Gemini API key ----------
+
+    fun saveGeminiApiKey(key: String) {
+        if (key.isBlank()) return
+        geminiKeyStore.saveKey(key)
+        _geminiKey.value = geminiKeyStore.getKey()
+        _showApiKeyDialog.value = false
+    }
+
+    fun clearGeminiApiKey() {
+        geminiKeyStore.clearKey()
+        _geminiKey.value = null
+    }
+
+    fun dismissApiKeyDialog() {
+        _showApiKeyDialog.value = false
+    }
+
+    fun requestApiKeySetup() {
+        _showApiKeyDialog.value = true
+    }
+
+    // ---------- AI Photo Import ----------
+
+    fun resetAiImport() {
+        _aiImportState.value = AiImportUiState.Idle
+        _aiTitle.value = ""
+        _aiItems.value = emptyList()
+        lastAiImageBytes = null
+    }
+
+    fun startAiImport(uri: Uri) = viewModelScope.launch {
+        val key = _geminiKey.value ?: run {
+            _aiImportState.value = AiImportUiState.Error("Add your Gemini API key first.")
+            return@launch
+        }
+        _aiImportState.value = AiImportUiState.Loading
+        try {
+            val (bytes, mime) = loadScaledImageBytes(uri) ?: run {
+                _aiImportState.value =
+                    AiImportUiState.Error("Could not read the selected image.")
+                return@launch
+            }
+            runAiExtraction(bytes, mime, key)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.printStackTrace()
+            _aiImportState.value =
+                AiImportUiState.Error(e.message ?: "Something went wrong while contacting the AI.")
+        }
+    }
+
+    fun retryAiImport() {
+        val bytes = lastAiImageBytes ?: return
+        val key = _geminiKey.value ?: return
+        viewModelScope.launch {
+            _aiImportState.value = AiImportUiState.Loading
+            try {
+                runAiExtraction(bytes, lastAiImageMime, key)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _aiImportState.value =
+                    AiImportUiState.Error(e.message ?: "Something went wrong while contacting the AI.")
+            }
+        }
+    }
+
+    private suspend fun runAiExtraction(bytes: ByteArray, mime: String, key: String) {
+        val extraction = GeminiApi.extractVocabulary(bytes, mime, key)
+        if (extraction.items.isEmpty()) {
+            _aiImportState.value = AiImportUiState.Error(
+                "No vocabulary entries were found in the image. Please retake the photo closer to the list and try again."
+            )
+            return
+        }
+        lastAiImageBytes = bytes
+        lastAiImageMime = mime
+        _aiTitle.value = extraction.title
+        _aiItems.value = extraction.items
+        _aiImportState.value = AiImportUiState.Success(extraction)
+    }
+
+    fun setAiTitle(title: String) {
+        _aiTitle.value = title
+    }
+
+    fun updateAiItem(index: Int, draft: AiVocabDraft) {
+        val current = _aiItems.value
+        if (index !in current.indices) return
+        _aiItems.value = current.toMutableList().also { it[index] = draft }
+    }
+
+    fun toggleAiItem(index: Int) {
+        val current = _aiItems.value
+        if (index !in current.indices) return
+        _aiItems.value = current.toMutableList().also {
+            it[index] = it[index].copy(selected = !it[index].selected)
+        }
+    }
+
+    fun removeAiItem(index: Int) {
+        val current = _aiItems.value
+        if (index !in current.indices) return
+        _aiItems.value = current.toMutableList().also { it.removeAt(index) }
+    }
+
+    /** Persists the reviewed AI extraction as a new chapter. Returns false if nothing selected. */
+    suspend fun createChapterFromAi(): Boolean = withContext(Dispatchers.IO) {
+        val title = _aiTitle.value.trim().ifBlank { "Imported Vocabulary" }
+        val items = _aiItems.value.filter { it.selected }
+        if (items.isEmpty()) return@withContext false
+        try {
+            val chapterId = repository.insertChapter(Chapter(name = title))
+            for (draft in items) {
+                repository.insertItem(
+                    VocabItem(
+                        chapterId = chapterId.toInt(),
+                        word = draft.word,
+                        reading = draft.reading,
+                        meaning = draft.meaning,
+                        type = draft.type,
+                        notes = draft.notes,
+                        exampleSentence = draft.example
+                    )
+                )
+            }
+            _selectedChapterId.value = chapterId.toInt()
+            resetAiImport()
+            // Main thread: refresh widget + preview after the DB writes land.
+            withContext(Dispatchers.Main) {
+                notifyWidgetUpdate()
+            }
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    /** Downscales the picked photo and encodes it as JPEG for a compact API payload. */
+    private fun loadScaledImageBytes(uri: Uri, maxDim: Int = 1400): Pair<ByteArray, String>? {
+        return try {
+            val resolver = getApplication<Application>().contentResolver
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+            val largest = maxOf(bounds.outWidth, bounds.outHeight)
+            if (largest <= 0) return null
+
+            var sampleSize = 1
+            while (largest / (sampleSize * 2) >= maxDim) sampleSize *= 2
+
+            val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+            val bitmap: Bitmap = resolver.openInputStream(uri)?.use {
+                BitmapFactory.decodeStream(it, null, options)
+            } ?: return null
+
+            val out = ByteArrayOutputStream()
+            if (!bitmap.compress(Bitmap.CompressFormat.JPEG, 88, out)) return null
+            out.toByteArray() to "image/jpeg"
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 }
