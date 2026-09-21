@@ -10,7 +10,7 @@ import android.util.Log
 object WidgetScheduleHelper {
     private const val PREFS_NAME = "widget_prefs"
     private const val KEY_INTERVAL_MINUTES = "interval_minutes"
-    
+
     fun getIntervalMinutes(context: Context): Int {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return prefs.getInt(KEY_INTERVAL_MINUTES, 60) // default 1 hour (60 minutes)
@@ -22,18 +22,28 @@ object WidgetScheduleHelper {
         scheduleWidgetUpdate(context, minutes)
     }
 
-    fun scheduleWidgetUpdate(context: Context, minutes: Int) {
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+    // Schedules the next rotation alarm using the interval stored in preferences.
+    // Called on app launch, widget enable, and device boot so the widget rotates
+    // even if the user never opens the settings screen.
+    fun ensureScheduled(context: Context) {
+        scheduleWidgetUpdate(context, getIntervalMinutes(context))
+    }
+
+    private fun createPendingIntent(context: Context): PendingIntent {
         val intent = Intent(context, VocabWidgetProvider::class.java).apply {
             action = VocabWidgetProvider.ACTION_CYCLE_WORD
         }
-
-        val pendingIntent = PendingIntent.getBroadcast(
+        return PendingIntent.getBroadcast(
             context,
             1001,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+    }
+
+    fun scheduleWidgetUpdate(context: Context, minutes: Int) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+        val pendingIntent = createPendingIntent(context)
 
         // Cancel existing alarm
         alarmManager.cancel(pendingIntent)
@@ -65,5 +75,11 @@ object WidgetScheduleHelper {
         } catch (e: Exception) {
             Log.e("WidgetScheduleHelper", "Failed to schedule widget update alarm", e)
         }
+    }
+
+    fun cancelWidgetUpdate(context: Context) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+        alarmManager.cancel(createPendingIntent(context))
+        Log.d("WidgetScheduleHelper", "Cancelled widget rotation alarm.")
     }
 }

@@ -46,33 +46,33 @@ class GreetingScreenshotTest {
           contentAlignment = Alignment.Center
         ) {
           Surface(
-            shape = RoundedCornerShape(16dp),
+            shape = RoundedCornerShape(16.dp),
             color = Color(0xFF1A1F26),
             modifier = Modifier
-              .width(280dp)
-              .padding(16dp)
+              .width(280.dp)
+              .padding(16.dp)
           ) {
             Column(
-              modifier = Modifier.padding(24dp),
+              modifier = Modifier.padding(24.dp),
               horizontalAlignment = Alignment.CenterHorizontally
             ) {
               Text(
                 text = "日本語",
-                fontSize = 32sp,
+                fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
               )
               Text(
                 text = "にほんご",
-                fontSize = 16sp,
+                fontSize = 16.sp,
                 color = Color(0xFF60A5FA),
-                modifier = Modifier.padding(top = 8dp)
+                modifier = Modifier.padding(top = 8.dp)
               )
               Text(
                 text = "Japanese language",
-                fontSize = 14sp,
+                fontSize = 14.sp,
                 color = Color.White.copy(alpha = 0.8f),
-                modifier = Modifier.padding(top = 12dp)
+                modifier = Modifier.padding(top = 12.dp)
               )
             }
           }

@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import com.example.ui.theme.*
 import androidx.compose.foundation.clickable
@@ -11,22 +12,31 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -35,11 +45,21 @@ import androidx.compose.ui.window.Dialog
 import android.content.ClipboardManager
 import android.content.ClipData
 import android.content.Context
+import android.content.ContentResolver
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.border
 import kotlinx.coroutines.launch
+import com.example.data.AiImportUiState
+import com.example.data.AiVocabDraft
 import com.example.data.Chapter
 import com.example.data.VocabItem
 import com.example.ui.viewmodel.MainViewModel
@@ -57,17 +77,26 @@ fun MainScreen(
     val intervalMinutes by viewModel.intervalMinutes.collectAsState()
     val cycleMode by viewModel.cycleMode.collectAsState()
     val simulatedItem by viewModel.simulatedItem.collectAsState()
+    val simulatedChapterName by viewModel.simulatedChapterName.collectAsState()
     val isScheduleModeEnabled by viewModel.isScheduleModeEnabled.collectAsState()
     val dayChapterAssignments by viewModel.dayChapterAssignments.collectAsState()
 
-    var currentTab by remember { mutableStateOf(0) } // 0 = Chapters, 1 = Items, 2 = Schedule, 3 = Widget Config
+    val geminiKey by viewModel.geminiKey.collectAsState()
+    val showApiKeyDialog by viewModel.showApiKeyDialog.collectAsState()
+    val aiImportState by viewModel.aiImportState.collectAsState()
+    val aiTitle by viewModel.aiTitle.collectAsState()
+    val aiItems by viewModel.aiItems.collectAsState()
+
+    var currentTab by rememberSaveable { mutableStateOf(0) } // 0 = Chapters, 1 = Items, 2 = Schedule, 3 = Widget Config
     
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    var showAiImport by rememberSaveable { mutableStateOf(false) }
+
     // Search & Settings State
-    var isSearchActive by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
+    var isSearchActive by rememberSaveable { mutableStateOf(false) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
     var showSettingsDialog by remember { mutableStateOf(false) }
 
     // Share / Import State
@@ -223,7 +252,7 @@ fun MainScreen(
                     selected = currentTab == 1,
                     onClick = { currentTab = 1 },
                     icon = { Icon(Icons.Outlined.Book, contentDescription = "Vocabulary") },
-                    label = { Text("Vocab & Kanji") },
+                    label = { Text("Items") },
                     modifier = Modifier.testTag("tab_items")
                 )
                 NavigationBarItem(
@@ -237,7 +266,7 @@ fun MainScreen(
                     selected = currentTab == 3,
                     onClick = { currentTab = 3 },
                     icon = { Icon(Icons.Outlined.Widgets, contentDescription = "Widget Config") },
-                    label = { Text("Lockscreen") },
+                    label = { Text("Widget") },
                     modifier = Modifier.testTag("tab_widget")
                 )
             }
@@ -254,14 +283,30 @@ fun MainScreen(
                     Icon(Icons.Filled.Add, contentDescription = "Add Chapter", modifier = Modifier.size(28.dp))
                 }
             } else if (currentTab == 1 && selectedChapterId != null) {
-                FloatingActionButton(
-                    onClick = { showAddItemDialog = true },
-                    containerColor = SleekFabBg,
-                    contentColor = SleekFabIcon,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.testTag("add_item_fab")
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(Icons.Filled.Add, contentDescription = "Add Vocabulary", modifier = Modifier.size(28.dp))
+                    FloatingActionButton(
+                        onClick = { showAddItemDialog = true },
+                        containerColor = SleekFabBg,
+                        contentColor = SleekFabIcon,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.testTag("add_item_fab")
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = "Add Vocabulary", modifier = Modifier.size(28.dp))
+                    }
+                    ExtendedFloatingActionButton(
+                        onClick = { showAiImport = true },
+                        containerColor = SleekFabBg,
+                        contentColor = SleekFabIcon,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.testTag("ai_import_fab")
+                    ) {
+                        Icon(Icons.Filled.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Scan List", fontSize = 13.sp)
+                    }
                 }
             }
         }
@@ -317,6 +362,7 @@ fun MainScreen(
                     intervalMinutes = intervalMinutes,
                     cycleMode = cycleMode,
                     simulatedItem = simulatedItem,
+                    simulatedChapterName = simulatedChapterName,
                     onIntervalChange = { viewModel.updateInterval(it) },
                     onCycleModeChange = { viewModel.updateCycleMode(it) },
                     onForceCycle = { viewModel.triggerForceCycle() }
@@ -390,6 +436,8 @@ fun MainScreen(
     if (showSettingsDialog) {
         SettingsDialog(
             onDismiss = { showSettingsDialog = false },
+            hasApiKey = geminiKey != null,
+            onManageApiKey = { viewModel.requestApiKeySetup() },
             onPreload = {
                 viewModel.preloadSampleData()
                 showSettingsDialog = false
@@ -397,6 +445,45 @@ fun MainScreen(
             onReset = {
                 viewModel.resetDatabase()
                 showSettingsDialog = false
+            }
+        )
+    }
+
+    if (showApiKeyDialog) {
+        GeminiKeyDialog(
+            onDismiss = { viewModel.dismissApiKeyDialog() },
+            onConfirm = { viewModel.saveGeminiApiKey(it) }
+        )
+    }
+
+    if (showAiImport) {
+        AiImportScreen(
+            geminiKey = geminiKey,
+            state = aiImportState,
+            aiTitle = aiTitle,
+            aiItems = aiItems,
+            onSaveApiKey = { viewModel.saveGeminiApiKey(it) },
+            onExtract = { uri -> viewModel.startAiImport(uri) },
+            onRetry = { viewModel.retryAiImport() },
+            onTitleChange = viewModel::setAiTitle,
+            onUpdateItem = viewModel::updateAiItem,
+            onToggleItem = viewModel::toggleAiItem,
+            onRemoveItem = viewModel::removeAiItem,
+            onClose = {
+                showAiImport = false
+                viewModel.resetAiImport()
+            },
+            onCreateChapter = {
+                scope.launch {
+                    val chapterCreated = viewModel.createChapterFromAi()
+                    if (chapterCreated) {
+                        showAiImport = false
+                        currentTab = 1
+                        Toast.makeText(context, "Chapter created from your photo!", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "Select at least one entry to import.", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
         )
     }
@@ -1011,6 +1098,7 @@ fun WidgetSettingsTabContent(
     intervalMinutes: Int,
     cycleMode: String,
     simulatedItem: VocabItem?,
+    simulatedChapterName: String?,
     onIntervalChange: (Int) -> Unit,
     onCycleModeChange: (String) -> Unit,
     onForceCycle: () -> Unit
@@ -1113,7 +1201,7 @@ fun WidgetSettingsTabContent(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "Chapter: Live Exposure List",
+                                text = simulatedChapterName?.let { "Chapter: $it" } ?: "Chapter: Exposed List",
                                 color = SleekInactive,
                                 fontSize = 11.sp,
                                 fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
@@ -1211,12 +1299,12 @@ fun WidgetSettingsTabContent(
             )
 
             val intervals = listOf(
-                Pair(1, "1 Min (Test)"),
+                Pair(1, "1 Min"),
                 Pair(15, "15 Min"),
-                Pair(60, "1 Hour"),
-                Pair(240, "4 Hours"),
-                Pair(720, "12 Hours"),
-                Pair(1440, "24 Hours")
+                Pair(60, "1 Hr"),
+                Pair(240, "4 Hr"),
+                Pair(720, "12 Hr"),
+                Pair(1440, "24 Hr")
             )
 
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -1311,7 +1399,7 @@ fun WidgetSettingsTabContent(
             ) {
                 Icon(Icons.Default.Loop, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Rotate Widget Card Now", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Text("Rotate Now", fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -1566,11 +1654,13 @@ fun AddEditItemDialog(
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp)
+                .padding(16.dp)
+                .heightIn(max = 620.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(20.dp)
             ) {
                 Text(
@@ -1589,13 +1679,13 @@ fun AddEditItemDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilterTabButton(
-                        text = "Vocabulary (語)",
+                        text = "Vocab",
                         selected = type == "vocab",
                         onClick = { type = "vocab" },
                         modifier = Modifier.weight(1f)
                     )
                     FilterTabButton(
-                        text = "Kanji (漢)",
+                        text = "Kanji",
                         selected = type == "kanji",
                         onClick = { type = "kanji" },
                         modifier = Modifier.weight(1f)
@@ -1716,6 +1806,8 @@ fun AddEditItemDialog(
 @Composable
 fun SettingsDialog(
     onDismiss: () -> Unit,
+    hasApiKey: Boolean,
+    onManageApiKey: () -> Unit,
     onPreload: () -> Unit,
     onReset: () -> Unit
 ) {
@@ -1790,6 +1882,62 @@ fun SettingsDialog(
                         }
                     }
 
+                    // Gemini AI
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Gemini AI Import",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (hasApiKey) {
+                                        "API key set. You can scan vocabulary lists from a photo."
+                                    } else {
+                                        "No API key yet. AI photo import stays locked until you add one."
+                                    },
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    lineHeight = 16.sp
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Button(
+                                    onClick = onManageApiKey,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (hasApiKey) Icons.Default.Edit else Icons.Default.Add,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(if (hasApiKey) "Change API Key" else "Add API Key", fontSize = 13.sp)
+                                }
+                            }
+                        }
+                    }
+
                     // How to use widget
                     item {
                         Column {
@@ -1838,7 +1986,7 @@ fun SettingsDialog(
                             ) {
                                 Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Preload Sample Vocabulary List", fontSize = 13.sp)
+                                Text("Load Sample Vocab", fontSize = 13.sp)
                             }
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -1853,7 +2001,7 @@ fun SettingsDialog(
                             ) {
                                 Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Wipe / Reset Local Database", fontSize = 13.sp)
+                                Text("Reset Data", fontSize = 13.sp)
                             }
                         }
                     }
@@ -2228,7 +2376,7 @@ fun ScheduleTabContent(
                             onDismissRequest = { showDropdown = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("No Chapter Assigned (Rotate All)") },
+                                text = { Text("None (rotate all)") },
                                 onClick = {
                                     onAssign(dayNum, -1)
                                     showDropdown = false
@@ -2249,6 +2397,565 @@ fun ScheduleTabContent(
                 }
             }
         }
+    }
+}
+
+// ==========================================
+// 4. GEMINI AI PHOTO IMPORT
+// ==========================================
+@Composable
+fun GeminiKeyDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var key by remember { mutableStateOf("") }
+    var showKey by remember { mutableStateOf(false) }
+    var isError by remember { mutableStateOf(false) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .testTag("api_key_dialog")
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Gemini API Key",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Enter a free Google AI Studio API key to unlock photo import of vocab lists. " +
+                        "The key is stored only on this device. You can skip this for now and add it later from Settings.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 18.sp
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = key,
+                    onValueChange = {
+                        key = it
+                        if (it.isNotBlank()) isError = false
+                    },
+                    label = { Text("API Key") },
+                    placeholder = { Text("AIza...") },
+                    isError = isError,
+                    singleLine = true,
+                    visualTransformation = if (showKey) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { showKey = !showKey }) {
+                            Icon(
+                                imageVector = if (showKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (showKey) "Hide key" else "Show key",
+                                tint = MaterialTheme.colorScheme.outline
+                            )
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    keyboardActions = KeyboardActions(onDone = {
+                        if (key.trim().length >= 20) onConfirm(key.trim())
+                    }),
+                    modifier = Modifier.fillMaxWidth().testTag("api_key_input")
+                )
+                if (isError) {
+                    Text(
+                        text = "Please paste a valid key.",
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Not now")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            if (key.trim().length >= 20) {
+                                onConfirm(key.trim())
+                            } else {
+                                isError = true
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        modifier = Modifier.testTag("api_key_save_button")
+                    ) {
+                        Text("Save")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AiImportScreen(
+    geminiKey: String?,
+    state: AiImportUiState,
+    aiTitle: String,
+    aiItems: List<AiVocabDraft>,
+    onSaveApiKey: (String) -> Unit,
+    onExtract: (Uri) -> Unit,
+    onRetry: () -> Unit,
+    onTitleChange: (String) -> Unit,
+    onUpdateItem: (Int, AiVocabDraft) -> Unit,
+    onToggleItem: (Int) -> Unit,
+    onRemoveItem: (Int) -> Unit,
+    onCreateChapter: () -> Unit,
+    onClose: () -> Unit
+) {
+    val context = LocalContext.current
+    var pickedUri by remember { mutableStateOf<Uri?>(null) }
+    var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var itemToEdit by remember { mutableStateOf<Pair<Int, AiVocabDraft>?>(null) }
+    var showKeyDialog by remember { mutableStateOf(false) }
+
+    val imagePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            pickedUri = uri
+            previewBitmap = context.contentResolver.decodePreviewBitmap(uri)
+        }
+    }
+
+    BackHandler(enabled = true, onBack = onClose)
+
+    Dialog(onDismissRequest = onClose) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "AI Photo Import",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                    IconButton(onClick = onClose) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                when {
+                    state is AiImportUiState.Loading -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator()
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = "Extracting vocabulary...",
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.outline
+                                )
+                            }
+                        }
+                    }
+
+                    state is AiImportUiState.Error -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                Icons.Outlined.ErrorOutline,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Extraction failed",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = state.message,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(20.dp))
+                            Button(onClick = onRetry) {
+                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Try Again")
+                            }
+                            TextButton(onClick = onClose) { Text("Cancel") }
+                        }
+                    }
+
+                    aiItems.isNotEmpty() -> {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            OutlinedTextField(
+                                value = aiTitle,
+                                onValueChange = onTitleChange,
+                                label = { Text("Chapter Title") },
+                                singleLine = true,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
+                                    .testTag("ai_title_input")
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Review the entries below. Uncheck any you don't want, or tap edit to fix details.",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.outline,
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+                            LazyColumn(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                                contentPadding = PaddingValues(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                itemsIndexed(aiItems, key = { i, _ -> i }) { index, draft ->
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth().testTag("ai_item_row_$index"),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+                                        )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Checkbox(
+                                                checked = draft.selected,
+                                                onCheckedChange = { onToggleItem(index) },
+                                                modifier = Modifier.testTag("ai_item_check_$index")
+                                            )
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = draft.word,
+                                                    fontSize = 16.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                if (draft.reading.isNotBlank() || draft.meaning.isNotBlank()) {
+                                                    Text(
+                                                        text = buildString {
+                                                            if (draft.reading.isNotBlank()) append(draft.reading)
+                                                            if (draft.reading.isNotBlank() && draft.meaning.isNotBlank()) append(" • ")
+                                                            if (draft.meaning.isNotBlank()) append(draft.meaning)
+                                                        },
+                                                        fontSize = 12.sp,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 2,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                            }
+                                            IconButton(onClick = { itemToEdit = index to draft }) {
+                                                Icon(
+                                                    Icons.Default.Edit,
+                                                    contentDescription = "Edit entry",
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                            IconButton(onClick = { onRemoveItem(index) }) {
+                                                Icon(
+                                                    Icons.Default.Delete,
+                                                    contentDescription = "Remove entry",
+                                                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Surface(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .windowInsetsPadding(WindowInsets.navigationBars)
+                                        .padding(16.dp)
+                                ) {
+                                    Text(
+                                        text = "${aiItems.count { it.selected }} of ${aiItems.size} selected",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Row {
+                                        OutlinedButton(
+                                            onClick = {
+                                                pickedUri = null
+                                                previewBitmap = null
+                                            },
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Text("New Photo")
+                                        }
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Button(
+                                            onClick = onCreateChapter,
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(48.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                            shape = RoundedCornerShape(12.dp),
+                                            enabled = aiItems.any { it.selected }
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Add,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Create Chapter", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    else -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = 32.dp, vertical = 16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Scan a photo of a Japanese vocab list",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Pick an image, let the AI extract each entry, then review, edit, and turn it into a chapter.",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.outline,
+                                textAlign = TextAlign.Center,
+                                lineHeight = 18.sp
+                            )
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            if (previewBitmap != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(220.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                ) {
+                                    Image(
+                                        bitmap = previewBitmap!!.asImageBitmap(),
+                                        contentDescription = "Selected photo",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Fit
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(16.dp))
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(160.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            Icons.Outlined.Image,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.outline,
+                                            modifier = Modifier.size(40.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "No photo selected",
+                                            color = MaterialTheme.colorScheme.outline,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(16.dp))
+                            }
+
+                            Button(
+                                onClick = {
+                                    imagePicker.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Choose Photo", fontSize = 14.sp)
+                            }
+
+                            if (previewBitmap != null && pickedUri != null) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                if (geminiKey == null) {
+                                    OutlinedButton(
+                                        onClick = { showKeyDialog = true },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Add Gemini API Key", fontSize = 14.sp)
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Extraction is locked until an API key is added.",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.outline,
+                                        textAlign = TextAlign.Center
+                                    )
+                                } else {
+                                    Button(
+                                        onClick = { onExtract(pickedUri!!) },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.tertiary
+                                        ),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Extract Words", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+
+                            if (geminiKey == null && previewBitmap == null) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "AI needs a Gemini API key to read photos. You can skip it and enable this feature later from Settings.",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.outline,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showKeyDialog) {
+        GeminiKeyDialog(
+            onDismiss = { showKeyDialog = false },
+            onConfirm = {
+                onSaveApiKey(it)
+                showKeyDialog = false
+            }
+        )
+    }
+
+    itemToEdit?.let { (index, draft) ->
+        AddEditItemDialog(
+            title = "Edit Extracted Entry",
+            initialWord = draft.word,
+            initialReading = draft.reading,
+            initialMeaning = draft.meaning,
+            initialType = draft.type,
+            initialNotes = draft.notes,
+            initialExampleSentence = draft.example,
+            onDismiss = { itemToEdit = null },
+            onConfirm = { word, reading, meaning, type, notes, exampleSentence ->
+                onUpdateItem(
+                    index,
+                    draft.copy(
+                        word = word,
+                        reading = reading,
+                        meaning = meaning,
+                        type = type,
+                        notes = notes,
+                        example = exampleSentence
+                    )
+                )
+                itemToEdit = null
+            }
+        )
+    }
+}
+
+private fun ContentResolver.decodePreviewBitmap(uri: Uri, maxDim: Int = 1600): Bitmap? {
+    return try {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        val largest = maxOf(bounds.outWidth, bounds.outHeight)
+        if (largest <= 0) return null
+        var sampleSize = 1
+        while (largest / (sampleSize * 2) >= maxDim) sampleSize *= 2
+        val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+        openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+    } catch (e: Exception) {
+        null
     }
 }
 
