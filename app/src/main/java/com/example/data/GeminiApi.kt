@@ -17,7 +17,7 @@ import java.net.URL
  */
 object GeminiApi {
 
-    const val MODEL = "gemini-2.5-flash"
+    const val MODEL = "gemini-3.6-flash"
     private const val ENDPOINT =
         "https://generativelanguage.googleapis.com/v1beta/models/$MODEL:generateContent"
     private const val TIMEOUT_MS = 90_000
@@ -89,9 +89,10 @@ object GeminiApi {
                 "generationConfig", JSONObject()
                     .put("temperature", 0.1)
                     .put("maxOutputTokens", 8192)
+                    .put("thinkingConfig", JSONObject().put("thinkingBudget", 0))
             )
 
-        val url = URL("$ENDPOINT?key=$apiKey")
+        val url = URL(ENDPOINT)
         val connection = url.openConnection() as HttpURLConnection
         connection.requestMethod = "POST"
         connection.doOutput = true
@@ -99,6 +100,7 @@ object GeminiApi {
         connection.readTimeout = TIMEOUT_MS
         connection.setRequestProperty("Content-Type", "application/json")
         connection.setRequestProperty("Accept", "application/json")
+        connection.setRequestProperty("x-goog-api-key", apiKey)
         try {
             connection.outputStream.use { it.write(requestBody.toString().toByteArray(Charsets.UTF_8)) }
             val code = connection.responseCode
