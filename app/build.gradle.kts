@@ -13,8 +13,8 @@ android {
     applicationId = "com.aistudio.japaneselockscreen.widget"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    versionCode = 2
+    versionName = "1.0.1"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -58,6 +58,27 @@ android {
     buildConfig = true
   }
   testOptions { unitTests { isIncludeAndroidResources = true } }
+}
+
+// Produces a release APK named with app + version, e.g. Komorebi-v1.0.1-release.apk
+tasks.register("packageVersionedRelease") {
+  group = "build"
+  description = "Copies the release APK to a versioned filename (Komorebi-vX.Y.Z-release.apk)."
+  dependsOn("assembleRelease")
+  val releaseDir = layout.buildDirectory.dir("outputs/apk/release")
+  val version = android.defaultConfig.versionName
+  val outputFile = releaseDir.map { it.file("Komorebi-v$version-release.apk") }
+  inputs.dir(releaseDir)
+  outputs.file(outputFile)
+  doLast {
+    val target = outputFile.get().asFile
+    val source = releaseDir.get().asFile
+        .listFiles { file -> file.isFile && file.name.endsWith("-release.apk") }
+        ?.maxByOrNull { it.lastModified() }
+        ?: error("No release APK found in ${releaseDir.get().asFile}")
+    source.copyTo(target, overwrite = true)
+    println("Versioned APK: ${target.absolutePath}")
+  }
 }
 
 dependencies {
