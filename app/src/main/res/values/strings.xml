@@ -1,3 +1,228 @@
 <resources>
     <string name="app_name">Komorebi</string>
+
+    <!-- Top bar -->
+    <string name="back">Back</string>
+    <string name="search">Search</string>
+    <string name="clear">Clear</string>
+    <string name="settings">Settings</string>
+    <string name="language_button">Language</string>
+    <string name="search_hint">Search Japanese words...</string>
+    <string name="no_chapter_selected">No Chapter Selected</string>
+
+    <!-- Tabs -->
+    <string name="tab_chapters">Chapters</string>
+    <string name="tab_items">Items</string>
+    <string name="tab_schedule">Schedule</string>
+    <string name="tab_widget">Widget</string>
+
+    <!-- Home CTA -->
+    <string name="new_chapter_cta">Create New Chapter</string>
+    <string name="scan_list">Scan List</string>
+    <string name="scan_ai_button">Scan a list with AI</string>
+    <string name="add_vocabulary">Add Vocabulary</string>
+
+    <!-- Chapter card -->
+    <string name="exposed_active">Exposed &amp; Active</string>
+    <string name="paused_hidden">Paused &amp; Hidden</string>
+    <string name="share_chapter">Share Chapter</string>
+    <string name="toggle_exposure">Toggle Exposure</string>
+    <string name="delete_chapter">Delete Chapter</string>
+    <string name="delete_chapter_title">Delete Chapter?</string>
+    <string name="delete_chapter_body">Deleting \u201C%1$s\u201D will also delete all of its vocabulary and Kanji items. This action cannot be undone.</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Chapters tab -->
+    <string name="create_chapter_first">Create a Chapter First</string>
+    <string name="need_chapter_first">You need a chapter folder before you can start adding vocabulary or Kanji lists.</string>
+
+    <!-- Items tab -->
+    <string name="selected_chapter">Selected Chapter</string>
+    <string name="choose_chapter">Choose Chapter</string>
+    <string name="all_filter">All</string>
+    <string name="vocab_filter">Vocab</string>
+    <string name="kanji_filter">Kanji</string>
+    <string name="no_words_yet">No Words Yet</string>
+    <string name="no_words_hint">Tap the \u2018+\u2019 button below to add custom words, hiragana reading, and translation definitions to this chapter.</string>
+    <string name="no_matching_words">No Matching Words</string>
+    <string name="no_matching_hint">We couldn\u2019t find any words matching \u201C%1$s\u201D in this chapter. Try searching something else.</string>
+    <string name="toggle_item_exposure">Toggle exposure</string>
+    <string name="expand_info">Expand info</string>
+    <string name="meaning">Meaning</string>
+    <string name="notes">Notes</string>
+    <string name="example_sentence">Example Sentence</string>
+    <string name="edit">Edit</string>
+
+    <!-- Widget settings tab -->
+    <string name="lockscreen_simulation">Lockscreen Simulation</string>
+    <string name="lockscreen_preview_hint">Live preview of what is currently exposed under your device clock.</string>
+    <string name="active_widget">ACTIVE WIDGET</string>
+    <string name="chapter_prefix">Chapter: </string>
+    <string name="chapter_exposed_list">Chapter: Exposed List</string>
+    <string name="no_active_words">No active words exposed</string>
+    <string name="widget_theme">Widget Theme</string>
+    <string name="widget_theme_hint">Pick the look of your home screen widget.</string>
+    <string name="exposed_pool">Exposed Vocabulary Pool</string>
+    <string name="items_exposed">Items currently exposed:</string>
+    <string name="exposed_words_count">%1$d words</string>
+    <string name="rotation_interval">Rotation Time Interval</string>
+    <string name="rotation_interval_hint">Choose how frequently the word cycles on the widget.</string>
+    <string name="rotation_mode">Rotation Mode</string>
+    <string name="rotation_mode_hint">Choose whether cards cycle sequentially or randomly.</string>
+    <string name="sequential">Sequential</string>
+    <string name="random">Random</string>
+    <string name="rotate_now">Rotate Now</string>
+
+    <!-- Add/Edit chapter dialog -->
+    <string name="add_new_chapter">Add New Chapter</string>
+    <string name="import_shared_chapter">Import Shared Chapter</string>
+    <string name="new_chapter">New Chapter</string>
+    <string name="import_code">Import Code</string>
+    <string name="chapter_name_label">Chapter Name</string>
+    <string name="chapter_name_hint">e.g. Genki Chapter 1</string>
+    <string name="name_blank_error">Name cannot be blank.</string>
+    <string name="create">Create</string>
+    <string name="import_code_hint">Paste the shared chapter code below to import it.</string>
+    <string name="shared_code_label">Shared Chapter Code</string>
+    <string name="paste_code_hint">Paste long code here...</string>
+    <string name="code_empty_error">Code cannot be empty.</string>
+    <string name="code_invalid_error">Invalid code. Please make sure you copied it correctly.</string>
+    <string name="import_btn">Import</string>
+
+    <!-- Add/Edit item dialog -->
+    <string name="vocab_type">Vocab</string>
+    <string name="kanji_type">Kanji</string>
+    <string name="kanji_word_label">Kanji Word</string>
+    <string name="vocabulary_word_label">Vocabulary Word</string>
+    <string name="word_kanji_hint">e.g. 日</string>
+    <string name="word_vocab_hint">e.g. 日本語</string>
+    <string name="word_empty_error">Word cannot be empty</string>
+    <string name="reading_label">Reading (Kana)</string>
+    <string name="reading_kanji_hint">e.g. ひ / にち</string>
+    <string name="reading_vocab_hint">e.g. にほんご</string>
+    <string name="reading_empty_error">Reading cannot be empty</string>
+    <string name="translation_label">Translation / Meaning</string>
+    <string name="meaning_hint_start">e.g. Day / Sun</string>
+    <string name="meaning_hint_end"> or Japanese language</string>
+    <string name="meaning_empty_error">Meaning cannot be empty</string>
+    <string name="notes_optional">Notes (Optional)</string>
+    <string name="notes_hint">e.g. Ru-verb, used for eating.</string>
+    <string name="example_optional">Example Sentence (Optional)</string>
+    <string name="example_hint">e.g. ご飯を食べる。</string>
+    <string name="save">Save</string>
+
+    <!-- Settings dialog -->
+    <string name="app_settings">App Settings</string>
+    <string name="settings_version">Komorebi v1.0.2</string>
+    <string name="settings_about">A passive learning tool that cycles custom Japanese vocabularies &amp; Kanji on your home screen or lock screen widgets.</string>
+    <string name="gemini_ai_import">Gemini AI Import</string>
+    <string name="api_key_set">API key set. You can scan vocabulary lists from a photo.</string>
+    <string name="api_key_missing">No API key yet. AI photo import stays locked until you add one.</string>
+    <string name="change_api_key">Change API Key</string>
+    <string name="add_api_key">Add API Key</string>
+    <string name="lang_section">Language</string>
+    <string name="lang_section_hint">The app and extracted meanings follow this language.</string>
+    <string name="english">English</string>
+    <string name="burmese">Burmese (မြန်မာ)</string>
+    <string name="how_to_setup_widget">How to Setup Widget</string>
+    <string name="how_to_widget">1. Go to your Android Home Screen.\n2. Press and hold on an empty space.\n3. Select \u2018Widgets\u2019 (or \u2018Add widgets\u2019).\n4. Search or scroll to find \u2018Komorebi\u2019.\n5. Drag the widget onto your home screen or lockscreen slot.</string>
+    <string name="db_seed_utilities">Database &amp; Seed Utilities</string>
+    <string name="db_seed_description">Manage the local SQLite database storing your Japanese word lists.</string>
+    <string name="load_sample">Load Sample Vocab</string>
+    <string name="reset_data">Reset Data</string>
+    <string name="reset_db_title">Reset Database?</string>
+    <string name="reset_db_body">Are you sure you want to completely erase your Japanese vocabulary database? This action is permanent and will delete all custom lists, chapters, and items.</string>
+    <string name="reset_everything">Reset Everything</string>
+    <string name="close">Close</string>
+
+    <!-- Export dialog -->
+    <string name="export_share_body">Share your vocabulary lists of \u201C%1$s\u201D with your friends using this compact share code.</string>
+    <string name="copy_code">Copy Code</string>
+
+    <!-- Schedule tab -->
+    <string name="day_monday">Monday</string>
+    <string name="day_tuesday">Tuesday</string>
+    <string name="day_wednesday">Wednesday</string>
+    <string name="day_thursday">Thursday</string>
+    <string name="day_friday">Friday</string>
+    <string name="day_saturday">Saturday</string>
+    <string name="day_sunday">Sunday</string>
+    <string name="schedule_planner">Daily Schedule Planner</string>
+    <string name="schedule_planner_hint">Assign a specific chapter to each day of the week to automatically filter widget items.</string>
+    <string name="schedule_mode">Schedule Mode</string>
+    <string name="schedule_active">Active (Filtering by Day)</string>
+    <string name="schedule_disabled">Disabled (Rotating All Exposed)</string>
+    <string name="weekly_assignments">Weekly Assignments</string>
+    <string name="assign_chapter">Assign Chapter</string>
+    <string name="none_rotate_all">None (rotate all)</string>
+    <string name="all_exposed_fallback">All Exposed (Fallback)</string>
+
+    <!-- Gemini key dialog -->
+    <string name="gemini_api_key">Gemini API Key</string>
+    <string name="gemini_key_desc">Enter a free Google AI Studio API key to unlock photo import of vocab lists. The key is stored only on this device. You can skip this for now and add it later from Settings.</string>
+    <string name="api_key_label">API Key</string>
+    <string name="ai_key_hint">AIza...</string>
+    <string name="hide_key">Hide key</string>
+    <string name="show_key">Show key</string>
+    <string name="key_invalid_error">Please paste a valid key.</string>
+    <string name="not_now">Not now</string>
+
+    <!-- AI import screen -->
+    <string name="ai_photo_import">AI Photo Import</string>
+    <string name="extracting_vocab">Extracting vocabulary...</string>
+    <string name="extraction_failed">Extraction failed</string>
+    <string name="try_again">Try Again</string>
+    <string name="chapter_title_label">Chapter Title</string>
+    <string name="review_entries_hint">Review the entries below. Uncheck any you don\u2019t want, or tap edit to fix details.</string>
+    <string name="edit_entry">Edit entry</string>
+    <string name="remove_entry">Remove entry</string>
+    <string name="selected_count">%1$d of %2$d selected</string>
+    <string name="new_photo">New Photo</string>
+    <string name="create_chapter">Create Chapter</string>
+    <string name="scan_photo_title">Scan a photo of a Japanese vocab list</string>
+    <string name="scan_photo_hint">Pick an image, let the AI extract each entry, then review, edit, and turn it into a chapter.</string>
+    <string name="selected_photo">Selected photo</string>
+    <string name="no_photo_selected">No photo selected</string>
+    <string name="choose_photo">Choose Photo</string>
+    <string name="add_gemini_api_key">Add Gemini API Key</string>
+    <string name="extraction_locked">Extraction is locked until an API key is added.</string>
+    <string name="extract_words">Extract Words</string>
+    <string name="ai_needs_key">AI needs a Gemini API key to read photos. You can skip it and enable this feature later from Settings.</string>
+    <string name="edit_extracted_entry">Edit Extracted Entry</string>
+
+    <!-- Toasts -->
+    <string name="export_error">Error exporting chapter.</string>
+    <string name="chapter_imported">Chapter imported successfully!</string>
+    <string name="chapter_created">Chapter created from your photo!</string>
+    <string name="select_entry_to_import">Select at least one entry to import.</string>
+    <string name="code_copied">Share code copied to clipboard!</string>
+
+    <!-- Widget fallback text -->
+    <string name="widget_no_words">No words exposed</string>
+    <string name="widget_tap_open">Tap to open manager</string>
+    <string name="widget_add_hint">Add vocabulary &amp; chapters, and toggle exposure.</string>
+    <string name="widget_general_chapter">General</string>
+    <string name="widget_example_label">Example sentence</string>
+
+    <!-- ViewModel messages -->
+    <string name="add_key_first">Add your Gemini API key first.</string>
+    <string name="read_image_error">Could not read the selected image.</string>
+    <string name="ai_contact_error">Something went wrong while contacting the AI.</string>
+    <string name="no_entries_found">No vocabulary entries were found in the image. Please retake the photo closer to the list and try again.</string>
+    <string name="imported_vocab_title">Imported Vocabulary</string>
+
+    <!-- Chapters tab extras -->
+    <string name="no_chapters_yet">No Chapters Yet</string>
+    <string name="no_chapters_yet_hint">Chapters let you segment vocabularies (e.g. \u2018Genki Ch 1\u2019, \u2018N5 Verbs\u2019). Tap the \u2018+\u2019 button below to create your first chapter.</string>
+    <string name="no_chapters_found">No Chapters Found</string>
+    <string name="no_chapters_found_hint">No chapters matched your search query \u201C%1$s\u201D. Try checking for typos or searching something else.</string>
+    <string name="manage_chapters">Manage Chapters</string>
+    <string name="search_results">Search Results</string>
+    <string name="add_new_word">Add New Word</string>
+    <string name="edit_word_details">Edit Word Details</string>
+
+    <!-- Navigation icon descriptions -->
+    <string name="tab_items_icon">Vocabulary</string>
+    <string name="tab_widget_icon">Widget Config</string>
 </resources>

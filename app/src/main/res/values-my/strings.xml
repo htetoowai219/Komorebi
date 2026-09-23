@@ -1,0 +1,228 @@
+<resources>
+    <string name="app_name">Komorebi</string>
+
+    <!-- Top bar -->
+    <string name="back">နောက်သို့</string>
+    <string name="search">ရှာဖွေရန်</string>
+    <string name="clear">ရှင်းလင်းရန်</string>
+    <string name="settings">ဆက်တင်များ</string>
+    <string name="language_button">ဘာသာစကား</string>
+    <string name="search_hint">ဂျပန်စကားလုံးများ ရှာဖွေပါ...</string>
+    <string name="no_chapter_selected">အခန်း မရွေးရသေးပါ</string>
+
+    <!-- Tabs -->
+    <string name="tab_chapters">အခန်းများ</string>
+    <string name="tab_items">ဝေါဟာရ</string>
+    <string name="tab_schedule">အချိန်ဇယား</string>
+    <string name="tab_widget">ဝစ်ဂျက်</string>
+
+    <!-- Home CTA -->
+    <string name="new_chapter_cta">အခန်းသစ် ဖန်တီးရန်</string>
+    <string name="scan_list">စာရင်း စကင်ဖတ်ရန်</string>
+    <string name="scan_ai_button">AI ဖြင့် စာရင်း စကင်ဖတ်ရန်</string>
+    <string name="add_vocabulary">ဝေါဟာရ ထည့်ရန်</string>
+
+    <!-- Chapter card -->
+    <string name="exposed_active">ပြသနေသည် &amp; အသက်ဝင်သည်</string>
+    <string name="paused_hidden">ရပ်ထားသည် &amp; ဝှက်ထားသည်</string>
+    <string name="share_chapter">အခန်း မျှဝေရန်</string>
+    <string name="toggle_exposure">ပြသ/မပြသ ပြောင်းရန်</string>
+    <string name="delete_chapter">အခန်း ဖျက်ရန်</string>
+    <string name="delete_chapter_title">အခန်း ဖျက်မလား?</string>
+    <string name="delete_chapter_body">\u201C%1$s\u201D ကို ဖျက်ပါက ၎င်း၏ ဝေါဟာရနှင့် ခန်ဂျိ အကြောင်းအရာအားလုံး ပါ ဖျက်မည်။ ဤလုပ်ဆောင်ချက်သည် ပြန်၍ မပြင်နိုင်ပါ။</string>
+    <string name="delete">ဖျက်ရန်</string>
+    <string name="cancel">မလုပ်တော့ပါ</string>
+
+    <!-- Chapters tab -->
+    <string name="create_chapter_first">အခန်းတစ်ခု ဦးစွာ ဖန်တီးပါ</string>
+    <string name="need_chapter_first">ဝေါဟာရ သို့မဟုတ် ခန်ဂျိ စာရင်းများ စတင်ထည့်သွင်းရန် အခန်း တစ်ခု ဦးစွာ လိုအပ်ပါသည်။</string>
+
+    <!-- Items tab -->
+    <string name="selected_chapter">ရွေးထားသော အခန်း</string>
+    <string name="choose_chapter">အခန်း ရွေးရန်</string>
+    <string name="all_filter">အားလုံး</string>
+    <string name="vocab_filter">ဝေါဟာရ</string>
+    <string name="kanji_filter">ခန်ဂျိ</string>
+    <string name="no_words_yet">စကားလုံး မရှိသေးပါ</string>
+    <string name="no_words_hint">အောက်က \u2018+\u2019 ခလုတ်ကို နှိပ်၍ စိတ်ကြိုက် စကားလုံးများ၊ ဟီရာဂန အသံထွက်နှင့် ဘာသာပြန် အဓိပ္ပာယ်များကို ဤအခန်းသို့ ထည့်နိုင်ပါသည်။</string>
+    <string name="no_matching_words">ကိုက်ညီသော စကားလုံး မရှိပါ</string>
+    <string name="no_matching_hint">\u201C%1$s\u201D နှင့် ကိုက်ညီသော စကားလုံး ဤအခန်းတွင် မတွေ့ပါ။ အခြားအရာများ ရှာကြည့်ပါ။</string>
+    <string name="toggle_item_exposure">ပြသ/မပြသ ပြောင်းရန်</string>
+    <string name="expand_info">အချက်အလက် ချဲ့ရန်</string>
+    <string name="meaning">အဓိပ္ပာယ်</string>
+    <string name="notes">မှတ်စု</string>
+    <string name="example_sentence">စာကြောင်း ဥပမာ</string>
+    <string name="edit">ပြင်ရန်</string>
+
+    <!-- Widget settings tab -->
+    <string name="lockscreen_simulation">လော့ခ်စခရင် ပုံစံတူ</string>
+    <string name="lockscreen_preview_hint">ကိုယ့်နာရီအောက်တွင် လက်ရှိ ပြသနေသော အရာများ၏ တိုက်ရိုက် မြင်ကွင်း ဖြစ်သည်။</string>
+    <string name="active_widget">ဝစ်ဂျက် အသုံးပြုလျက်ရှိ</string>
+    <string name="chapter_prefix">အခန်း- </string>
+    <string name="chapter_exposed_list">အခန်း- ပြသနေသော စာရင်း</string>
+    <string name="no_active_words">ပြသနေသော စကားလုံး မရှိပါ</string>
+    <string name="widget_theme">ဝစ်ဂျက် အသွင်အပြင်</string>
+    <string name="widget_theme_hint">သင့် ဖုန်းမျက်နှာပြင်ရှိ ဝစ်ဂျက် အသွင်အပြင်ကို ရွေးပါ။</string>
+    <string name="exposed_pool">ပြသမည့် ဝေါဟာရ အစုအဝေး</string>
+    <string name="items_exposed">လက်ရှိ ပြသနေသော အကြောင်းအရာများ:</string>
+    <string name="exposed_words_count">%1$d လုံး</string>
+    <string name="rotation_interval">ပြောင်းလဲသည့် ကြိမ်နှုန်း</string>
+    <string name="rotation_interval_hint">ဝစ်ဂျက်ပေါ်တွင် စကားလုံး မည်မျှ ကြာကြာ ပြောင်းသည်ကို ရွေးပါ။</string>
+    <string name="rotation_mode">ပြောင်းလဲသည့် ပုံစံ</string>
+    <string name="rotation_mode_hint">ကတ်များကို စဉ်ဆက်မပြတ် သို့မဟုတ် ကျပန်း ပြောင်းရန် ရွေးပါ။</string>
+    <string name="sequential">စဉ်ဆက်မပြတ်</string>
+    <string name="random">ကျပန်း</string>
+    <string name="rotate_now">ယခု ပြောင်းရန်</string>
+
+    <!-- Add/Edit chapter dialog -->
+    <string name="add_new_chapter">အခန်းသစ် ထည့်ရန်</string>
+    <string name="import_shared_chapter">မျှဝေထားသော အခန်း ယူသွင်းရန်</string>
+    <string name="new_chapter">အခန်းသစ်</string>
+    <string name="import_code">ကုဒ် ယူသွင်းရန်</string>
+    <string name="chapter_name_label">အခန်းအမည်</string>
+    <string name="chapter_name_hint">ဥပမာ- Genki အခန်း ၁</string>
+    <string name="name_blank_error">အမည် ကွက်လပ် မဖြစ်ရပါ။</string>
+    <string name="create">ဖန်တီးရန်</string>
+    <string name="import_code_hint">မျှဝေထားသော အခန်း ကုဒ်ကို အောက်တွင် ကူးထည့်ပါ။</string>
+    <string name="shared_code_label">မျှဝေထားသော အခန်း ကုဒ်</string>
+    <string name="paste_code_hint">ရှည်လျားသော ကုဒ်ကို ဤတွင် ကူးထည့်ပါ...</string>
+    <string name="code_empty_error">ကုဒ် ကွက်လပ် မဖြစ်ရပါ။</string>
+    <string name="code_invalid_error">ကုဒ် မမှန်ကန်ပါ။ မှန်ကန်စွာ ကူးထည့်ထားကြောင်း သေချာပါစေ။</string>
+    <string name="import_btn">ယူသွင်းရန်</string>
+
+    <!-- Add/Edit item dialog -->
+    <string name="vocab_type">ဝေါဟာရ</string>
+    <string name="kanji_type">ခန်ဂျိ</string>
+    <string name="kanji_word_label">ခန်ဂျိ စာလုံး</string>
+    <string name="vocabulary_word_label">ဝေါဟာရ စကားလုံး</string>
+    <string name="word_kanji_hint">ဥပမာ- 日</string>
+    <string name="word_vocab_hint">ဥပမာ- 日本語</string>
+    <string name="word_empty_error">စကားလုံး ကွက်လပ် မဖြစ်ရပါ</string>
+    <string name="reading_label">အသံထွက် (ခန)</string>
+    <string name="reading_kanji_hint">ဥပမာ- ひ / にち</string>
+    <string name="reading_vocab_hint">ဥပမာ- にほんご</string>
+    <string name="reading_empty_error">အသံထွက် ကွက်လပ် မဖြစ်ရပါ</string>
+    <string name="translation_label">ဘာသာပြန် / အဓိပ္ပာယ်</string>
+    <string name="meaning_hint_start">ဥပမာ- နေ့ / နေ</string>
+    <string name="meaning_hint_end"> သို့မဟုတ် ဂျပန်ဘာသာ</string>
+    <string name="meaning_empty_error">အဓိပ္ပာယ် ကွက်လပ် မဖြစ်ရပါ</string>
+    <string name="notes_optional">မှတ်စု (ချန်လှပ်၍ရသည်)</string>
+    <string name="notes_hint">ဥပမာ- Ru-ကြိယာ၊ စားရာတွင် သုံးသည်။</string>
+    <string name="example_optional">စာကြောင်း ဥပမာ (ချန်လှပ်၍ရသည်)</string>
+    <string name="example_hint">ဥပမာ- ご飯を食べる။</string>
+    <string name="save">သိမ်းရန်</string>
+
+    <!-- Settings dialog -->
+    <string name="app_settings">အက်ပ် ဆက်တင်များ</string>
+    <string name="settings_version">Komorebi v1.0.2</string>
+    <string name="settings_about">သင့် ဖုန်း မျက်နှာပြင် သို့မဟုတ် လော့ခ်စခရင် ဝစ်ဂျက်ပေါ်တွင် စိတ်ကြိုက် ဂျပန် ဝေါဟာရများနှင့် ခန်ဂျိများကို အလှည့်ကျ ပြသပေးသော passive သင်ယူမှု ကိရိယာ။</string>
+    <string name="gemini_ai_import">Gemini AI ယူသွင်းမှု</string>
+    <string name="api_key_set">API သော့ သတ်မှတ်ပြီးပါပြီ။ ဓာတ်ပုံမှ ဝေါဟာရ စာရင်းများကို စကင်ဖတ်နိုင်ပါပြီ။</string>
+    <string name="api_key_missing">API သော့ မရှိသေးပါ။ AI ဓာတ်ပုံ ယူသွင်းမှုကို သော့ ထည့်သည့်တိုင်အောင် သုံး၍ မရပါ။</string>
+    <string name="change_api_key">API သော့ ပြောင်းရန်</string>
+    <string name="add_api_key">API သော့ ထည့်ရန်</string>
+    <string name="lang_section">ဘာသာစကား</string>
+    <string name="lang_section_hint">အက်ပ်နှင့် ထုတ်ယူလာသော အဓိပ္ပာယ်များသည် ဤဘာသာစကားကို လိုက်နာမည်။</string>
+    <string name="english">English</string>
+    <string name="burmese">Burmese (မြန်မာ)</string>
+    <string name="how_to_setup_widget">ဝစ်ဂျက် တပ်ဆင်နည်း</string>
+    <string name="how_to_widget">၁။ သင့် Android ဖုန်း မျက်နှာပြင်သို့ သွားပါ။\n၂။ နေရာလွတ်တစ်ခုကို ဖိထားပါ။\n၃။ \u2018Widgets\u2019 (သို့ \u2018Add widgets\u2019) ကို ရွေးပါ။\n၄။ \u2018Komorebi\u2019 ကို ရှာပြီး ရွေးပါ။\n၅။ ဝစ်ဂျက်ကို မျက်နှာပြင် သို့မဟုတ် လော့ခ်စခရင် နေရာသို့ ချရိုက်ပါ။</string>
+    <string name="db_seed_utilities">ဒေတာဘေ့စ် နှင့် နမူနာ ကိရိယာများ</string>
+    <string name="db_seed_description">သင့် ဂျပန် စကားလုံး စာရင်းများကို သိမ်းဆည်းထားသော ကိုယ်ပိုင် SQLite ဒေတာဘေ့စ်ကို စီမံပါ။</string>
+    <string name="load_sample">နမူနာ ဝေါဟာရ ထည့်ရန်</string>
+    <string name="reset_data">ဒေတာ ပြန်စရန်</string>
+    <string name="reset_db_title">ဒေတာဘေ့စ် ပြန်စမလား?</string>
+    <string name="reset_db_body">သင့် ဂျပန် ဝေါဟာရ ဒေတာဘေ့စ် တစ်ခုလုံးကို ဖျက်ပစ်မှာ သေချာပါသလား? ဤလုပ်ဆောင်ချက်သည် အပြီးအပိုင် ဖြစ်ပြီး စိတ်ကြိုက် စာရင်းများ၊ အခန်းများနှင့် အကြောင်းအရာ အားလုံးကို ဖျက်မည်။</string>
+    <string name="reset_everything">အားလုံး ပြန်စရန်</string>
+    <string name="close">ပိတ်ရန်</string>
+
+    <!-- Export dialog -->
+    <string name="export_share_body">\u201C%1$s\u201D ၏ ဝေါဟာရ စာရင်းများကို ဤသေးငယ်သော မျှဝေသော ကုဒ်ဖြင့် သင့် သူငယ်ချင်းများနှင့် မျှဝေပါ။</string>
+    <string name="copy_code">ကုဒ် ကူးယူရန်</string>
+
+    <!-- Schedule tab -->
+    <string name="day_monday">တနင်္လာ</string>
+    <string name="day_tuesday">အင်္ဂါ</string>
+    <string name="day_wednesday">ဗုဒ္ဓဟူး</string>
+    <string name="day_thursday">ကြာသပတေး</string>
+    <string name="day_friday">သောကြာ</string>
+    <string name="day_saturday">စနေ</string>
+    <string name="day_sunday">တနင်္ဂနွေ</string>
+    <string name="schedule_planner">နေ့စဉ် အချိန်ဇယား စီစဉ်သူ</string>
+    <string name="schedule_planner_hint">တစ်ပတ်၏ နေ့တစ်နေ့စီသို့ အခန်းတစ်ခုစီ သတ်မှတ်၍ ဝစ်ဂျက် အကြောင်းအရာများကို အလိုအလျောက် စစ်ထုတ်နိုင်ပါသည်။</string>
+    <string name="schedule_mode">အချိန်ဇယား ပုံစံ</string>
+    <string name="schedule_active">အသက်ဝင်နေသည် (နေ့အလိုက် စစ်ထုတ်နေသည်)</string>
+    <string name="schedule_disabled">ပိတ်ထားသည် (ပြသနေသော အားလုံး အလှည့်ကျ)</string>
+    <string name="weekly_assignments">အပတ်စဉ် သတ်မှတ်ချက်များ</string>
+    <string name="assign_chapter">အခန်း သတ်မှတ်ရန်</string>
+    <string name="none_rotate_all">မရှိ (အားလုံး အလှည့်ကျ)</string>
+    <string name="all_exposed_fallback">ပြသနေသော အားလုံး (နောက်ဆုံး)</string>
+
+    <!-- Gemini key dialog -->
+    <string name="gemini_api_key">Gemini API သော့</string>
+    <string name="gemini_key_desc">ဝေါဟာရ စာရင်းများကို ဓာတ်ပုံမှ ယူသွင်းနိုင်ရန် အခမဲ့ Google AI Studio API သော့ကို ထည့်ပါ။ သော့ကို ဤစက်ပစ္စည်းတွင်သာ သိမ်းဆည်းသည်။ ယခု ကျော်၍ နောက်မှ ဆက်တင်မှ ထည့်နိုင်ပါသည်။</string>
+    <string name="api_key_label">API သော့</string>
+    <string name="ai_key_hint">AIza...</string>
+    <string name="hide_key">သော့ ဝှက်ရန်</string>
+    <string name="show_key">သော့ ပြရန်</string>
+    <string name="key_invalid_error">မှန်ကန်သော သော့တစ်ခုကို ထည့်ပါ။</string>
+    <string name="not_now">ယခု မဟုတ်ဘူး</string>
+
+    <!-- AI import screen -->
+    <string name="ai_photo_import">AI ဓာတ်ပုံ ယူသွင်းမှု</string>
+    <string name="extracting_vocab">ဝေါဟာရ ထုတ်ယူနေသည်...</string>
+    <string name="extraction_failed">ထုတ်ယူမှု မအောင်မြင်ပါ</string>
+    <string name="try_again">ထပ်ကြိုးစားရန်</string>
+    <string name="chapter_title_label">အခန်း ခေါင်းစဉ်</string>
+    <string name="review_entries_hint">အောက်ဖော်ပြပါ အကြောင်းအရာများကို ပြန်စစ်ပါ။ မလိုသော အရာကို ဖြုတ်ပါ၊ သို့မဟုတ် အသေးစိတ် ပြင်ရန် edit ကို နှိပ်ပါ။</string>
+    <string name="edit_entry">အကြောင်းအရာ ပြင်ရန်</string>
+    <string name="remove_entry">အကြောင်းအရာ ဖယ်ရန်</string>
+    <string name="selected_count">%1$d / %2$d ရွေးထားသည်</string>
+    <string name="new_photo">ဓာတ်ပုံသစ်</string>
+    <string name="create_chapter">အခန်း ဖန်တီးရန်</string>
+    <string name="scan_photo_title">ဂျပန် ဝေါဟာရ စာရင်းတစ်ခု၏ ဓာတ်ပုံကို စကင်ဖတ်ပါ</string>
+    <string name="scan_photo_hint">ပုံတစ်ပုံကို ရွေးပါ၊ AI က အကြောင်းအရာ တစ်ခုစီကို ထုတ်ယူပေးသည်၊ ပြန်စစ်၊ ပြင်ပြီး အခန်းအဖြစ် ပြောင်းပါ။</string>
+    <string name="selected_photo">ရွေးထားသော ဓာတ်ပုံ</string>
+    <string name="no_photo_selected">ဓာတ်ပုံ မရွေးရသေးပါ</string>
+    <string name="choose_photo">ဓာတ်ပုံ ရွေးရန်</string>
+    <string name="add_gemini_api_key">Gemini API သော့ ထည့်ရန်</string>
+    <string name="extraction_locked">API သော့ ထည့်သည့်တိုင်အောင် ထုတ်ယူမှု ပိတ်ထားသည်။</string>
+    <string name="extract_words">စကားလုံးများ ထုတ်ယူရန်</string>
+    <string name="ai_needs_key">AI က ဓာတ်ပုံများဖတ်ရန် Gemini API သော့ လိုအပ်သည်။ ကျော်၍ နောက်မှ ဆက်တင်မှ ဤလုပ်ဆောင်ချက်ကို ဖွင့်နိုင်ပါသည်။</string>
+    <string name="edit_extracted_entry">ထုတ်ယူထားသော အကြောင်းအရာ ပြင်ရန်</string>
+
+    <!-- Toasts -->
+    <string name="export_error">အခန်း မျှဝေရာတွင် အမှား ဖြစ်ခဲ့သည်။</string>
+    <string name="chapter_imported">အခန်း အောင်မြင်စွာ ယူသွင်းပြီးပါပြီ!</string>
+    <string name="chapter_created">သင့်ဓာတ်ပုံမှ အခန်းကို ဖန်တီးပြီးပါပြီ!</string>
+    <string name="select_entry_to_import">ယူသွင်းရန် အကြောင်းအရာ တစ်ခုခုကို ရွေးပါ။</string>
+    <string name="code_copied">မျှဝေသော ကုဒ်ကို ကလစ်ဘုတ်သို့ ကူးယူပြီးပါပြီ!</string>
+
+    <!-- Widget fallback text -->
+    <string name="widget_no_words">စကားလုံး မပြသနေပါ</string>
+    <string name="widget_tap_open">စီမံခန့်ခွဲသူ ဖွင့်ရန် နှိပ်ပါ</string>
+    <string name="widget_add_hint">ဝေါဟာရများနှင့် အခန်းများ ထည့်ပြီး ပြသ/မပြသ ပြောင်းပါ။</string>
+    <string name="widget_general_chapter">အထွေထွေ</string>
+    <string name="widget_example_label">စာကြောင်း ဥပမာ</string>
+
+    <!-- ViewModel messages -->
+    <string name="add_key_first">သင့် Gemini API သော့ကို ဦးစွာ ထည့်ပါ။</string>
+    <string name="read_image_error">ရွေးထားသော ပုံကို ဖတ်၍ မရပါ။</string>
+    <string name="ai_contact_error">AI သို့ ဆက်သွယ်ရာတွင် တစ်စုံတစ်ခု မှားယွင်းသွားသည်။</string>
+    <string name="no_entries_found">ပုံတွင် ဝေါဟာရ အကြောင်းအရာ တစ်ခုမျှ မတွေ့ပါ။ ဓာတ်ပုံကို စာရင်းနှင့် နီးနီး ပြန်ရိုက်၍ ထပ်ကြိုးစားပါ။</string>
+    <string name="imported_vocab_title">ယူသွင်းထားသော ဝေါဟာရ</string>
+
+    <!-- Chapters tab extras -->
+    <string name="no_chapters_yet">အခန်း မရှိသေးပါ</string>
+    <string name="no_chapters_yet_hint">အခန်းများက ဝေါဟာရများကို အုပ်စုခွဲနိုင်စေသည် (ဥပမာ- \u2018Genki Ch 1\u2019, \u2018N5 Verbs\u2019)။ ပထမဆုံး အခန်းဖန်တီးရန် အောက်က \u2018+\u2019 ခလုတ်ကို နှိပ်ပါ။</string>
+    <string name="no_chapters_found">အခန်း တွေ့ရှိမှု မရှိပါ</string>
+    <string name="no_chapters_found_hint">ရှာဖွေမှု \u201C%1$s\u201D နှင့် ကိုက်ညီသော အခန်း မတွေ့ပါ။ စာလုံးပေါင်း စစ်ဆေးပါ သို့မဟုတ် အခြားအရာ ရှာကြည့်ပါ။</string>
+    <string name="manage_chapters">အခန်းများ စီမံရန်</string>
+    <string name="search_results">ရှာဖွေမှု ရလဒ်များ</string>
+    <string name="add_new_word">စကားလုံးသစ် ထည့်ရန်</string>
+    <string name="edit_word_details">စကားလုံး အသေးစိတ် ပြင်ရန်</string>
+
+    <!-- Navigation icon descriptions -->
+    <string name="tab_items_icon">ဝေါဟာရ</string>
+    <string name="tab_widget_icon">ဝစ်ဂျက် ဖွဲ့စည်းမှု</string>
+</resources>
