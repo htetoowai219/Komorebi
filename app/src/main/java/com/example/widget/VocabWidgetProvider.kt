@@ -182,9 +182,9 @@ class VocabWidgetProvider : AppWidgetProvider() {
             val exposedItems = getScheduledOrExposedItems(context)
 
             if (exposedItems.isEmpty()) {
-                views.setTextViewText(R.id.txt_widget_word, "No words exposed")
-                views.setTextViewText(R.id.txt_widget_reading, "Tap to open manager")
-                views.setTextViewText(R.id.txt_widget_meaning, "Add vocabulary & chapters, and toggle exposure.")
+                views.setTextViewText(R.id.txt_widget_word, context.getString(R.string.widget_no_words))
+                views.setTextViewText(R.id.txt_widget_reading, context.getString(R.string.widget_tap_open))
+                views.setTextViewText(R.id.txt_widget_meaning, context.getString(R.string.widget_add_hint))
                 views.setViewVisibility(R.id.txt_widget_type, View.GONE)
                 views.setViewVisibility(R.id.txt_widget_chapter, View.GONE)
                 views.setViewVisibility(R.id.btn_widget_refresh, View.GONE)
@@ -218,7 +218,7 @@ class VocabWidgetProvider : AppWidgetProvider() {
                 views.setTextViewText(R.id.txt_widget_type, activeItem.type.uppercase())
 
                 val chapter = dao.getChapterById(activeItem.chapterId)
-                views.setTextViewText(R.id.txt_widget_chapter, chapter?.name ?: "General")
+                views.setTextViewText(R.id.txt_widget_chapter, chapter?.name ?: context.getString(R.string.widget_general_chapter))
 
                 val isFlipped = prefs.getBoolean("widget_flipped_$appWidgetId", false)
                 if (isFlipped) {
@@ -232,13 +232,23 @@ class VocabWidgetProvider : AppWidgetProvider() {
                     }
                     views.setTextViewText(R.id.txt_widget_back_header, headerText)
 
-                    val notesText = if (activeItem.notes.isNotBlank()) activeItem.notes else "No notes available."
-                    views.setTextViewText(R.id.txt_widget_notes, notesText)
+                    if (activeItem.notes.isNotBlank()) {
+                        views.setViewVisibility(R.id.txt_widget_notes, View.VISIBLE)
+                        views.setTextViewText(R.id.txt_widget_notes, activeItem.notes)
+                    } else {
+                        views.setViewVisibility(R.id.txt_widget_notes, View.GONE)
+                    }
 
                     if (activeItem.exampleSentence.isNotBlank()) {
+                        views.setViewVisibility(R.id.txt_widget_example_label, View.VISIBLE)
+                        views.setTextViewText(
+                            R.id.txt_widget_example_label,
+                            context.getString(R.string.widget_example_label)
+                        )
                         views.setViewVisibility(R.id.txt_widget_example, View.VISIBLE)
                         views.setTextViewText(R.id.txt_widget_example, activeItem.exampleSentence)
                     } else {
+                        views.setViewVisibility(R.id.txt_widget_example_label, View.GONE)
                         views.setViewVisibility(R.id.txt_widget_example, View.GONE)
                     }
                 } else {
@@ -285,7 +295,23 @@ class VocabWidgetProvider : AppWidgetProvider() {
                 views.setOnClickPendingIntent(R.id.widget_root, pendingIntent)
             }
 
+            applyTheme(context, views)
             appWidgetManager.updateAppWidget(appWidgetId, views)
+        }
+
+        /** Applies the global widget theme (background + text colors) via RemoteViews. */
+        private fun applyTheme(context: Context, views: RemoteViews) {
+            val theme = WidgetThemes.current(context)
+            views.setInt(R.id.widget_root, "setBackgroundResource", theme.backgroundRes)
+            views.setTextColor(R.id.txt_widget_word, theme.word)
+            views.setTextColor(R.id.txt_widget_reading, theme.reading)
+            views.setTextColor(R.id.txt_widget_meaning, theme.meaning)
+            views.setTextColor(R.id.txt_widget_type, theme.type)
+            views.setTextColor(R.id.txt_widget_chapter, theme.chapter)
+            views.setTextColor(R.id.txt_widget_notes, theme.notes)
+            views.setTextColor(R.id.txt_widget_example_label, theme.notes)
+            views.setTextColor(R.id.txt_widget_example, theme.example)
+            views.setTextColor(R.id.txt_widget_back_header, theme.backHeader)
         }
     }
 }

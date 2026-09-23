@@ -11,6 +11,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.R
 import com.example.data.AiImportUiState
 import com.example.data.AiVocabDraft
 import com.example.data.AppDatabase
@@ -23,6 +24,7 @@ import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.CancellationException
 import com.example.widget.VocabWidgetProvider
 import com.example.widget.WidgetScheduleHelper
+import com.example.widget.WidgetThemes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -81,6 +83,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _cycleMode = MutableStateFlow(prefs.getString("cycle_mode", "sequential") ?: "sequential")
     val cycleMode: StateFlow<String> = _cycleMode.asStateFlow()
+
+    /// Global widget theme
+    private val _widgetTheme = MutableStateFlow(WidgetThemes.current(application).key)
+    val widgetTheme: StateFlow<String> = _widgetTheme.asStateFlow()
+
+    // App language (English / Burmese). UI strings are localized via resources;
+    // the activity recreates after a change so the new locale takes effect.
+    private val _appLanguage = MutableStateFlow(prefs.getString("app_language", "en") ?: "en")
+    val appLanguage: StateFlow<String> = _appLanguage.asStateFlow()
 
     // Schedule Mode State
     private val _isScheduleModeEnabled = MutableStateFlow(prefs.getBoolean("schedule_mode_enabled", false))
@@ -221,6 +232,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _dayChapterAssignments.value = loadDayChapterAssignments()
         notifyWidgetUpdate()
     }
+
+    fun updateWidgetTheme(theme: String) {
+        _widgetTheme.value = theme
+        prefs.edit().putString(WidgetThemes.PREF_THEME, theme).apply()
+        notifyWidgetUpdate()
+    }
+
+    fun setAppLanguage(code: String) {
+        _appLanguage.value = code
+        prefs.edit().putString("app_language", code).apply()
+    }
+
+    /** Language used for extracted meanings: "en" -> English, otherwise Burmese. */
+    fun meaningLanguage(): String =
+        if (prefs.getString("app_language", "en") == "en") "en" else "my"
 
     // Force systems to select the next word and redraw the active widgets immediately
     fun triggerForceCycle() = viewModelScope.launch {
@@ -415,15 +441,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startAiImport(uri: Uri) = viewModelScope.launch {
+        val app = getApplication<Application>()
         val key = _geminiKey.value ?: run {
-            _aiImportState.value = AiImportUiState.Error("Add your Gemini API key first.")
+            _aiImportState.value = AiImportUiState.Error(app.getString(R.string.add_key_first))
             return@launch
         }
         _aiImportState.value = AiImportUiState.Loading
         try {
             val (bytes, mime) = loadScaledImageBytes(uri) ?: run {
                 _aiImportState.value =
-                    AiImportUiState.Error("Could not read the selected image.")
+                    AiImportUiState.Error(app.getString(R.string.read_image_error))
                 return@launch
             }
             runAiExtraction(bytes, mime, key)
@@ -432,7 +459,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } catch (e: Exception) {
             e.printStackTrace()
             _aiImportState.value =
-                AiImportUiState.Error(e.message ?: "Something went wrong while contacting the AI.")
+                AiImportUiState.Error(e.message ?: app.getString(R.string.ai_contact_error))
         }
     }
 
@@ -440,6 +467,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val bytes = lastAiImageBytes ?: return
         val key = _geminiKey.value ?: return
         viewModelScope.launch {
+            val app = getApplication<Application>()
             _aiImportState.value = AiImportUiState.Loading
             try {
                 runAiExtraction(bytes, lastAiImageMime, key)
@@ -448,16 +476,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 e.printStackTrace()
                 _aiImportState.value =
-                    AiImportUiState.Error(e.message ?: "Something went wrong while contacting the AI.")
+                    AiImportUiState.Error(e.message ?: app.getString(R.string.ai_contact_error))
             }
         }
     }
 
     private suspend fun runAiExtraction(bytes: ByteArray, mime: String, key: String) {
-        val extraction = GeminiApi.extractVocabulary(bytes, mime, key)
+        val extraction = GeminiApi.extractVocabulary(bytes, mime, key, meaningLanguage())
         if (extraction.items.isEmpty()) {
             _aiImportState.value = AiImportUiState.Error(
-                "No vocabulary entries were found in the image. Please retake the photo closer to the list and try again."
+                getApplication<Application>().getString(R.string.no_entries_found)
             )
             return
         }
@@ -494,7 +522,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Persists the reviewed AI extraction as a new chapter. Returns false if nothing selected. */
     suspend fun createChapterFromAi(): Boolean = withContext(Dispatchers.IO) {
-        val title = _aiTitle.value.trim().ifBlank { "Imported Vocabulary" }
+        val title = _aiTitle.value.trim().ifBlank {
+            getApplication<Application>().getString(R.string.imported_vocab_title)
+        }
         val items = _aiItems.value.filter { it.selected }
         if (items.isEmpty()) return@withContext false
         try {

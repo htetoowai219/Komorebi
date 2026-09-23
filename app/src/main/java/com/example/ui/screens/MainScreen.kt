@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import com.example.R
 import androidx.compose.animation.*
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
@@ -33,6 +34,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -46,6 +48,7 @@ import android.content.ClipboardManager
 import android.content.ClipData
 import android.content.Context
 import android.content.ContentResolver
+import android.app.Activity
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -63,6 +66,7 @@ import com.example.data.AiVocabDraft
 import com.example.data.Chapter
 import com.example.data.VocabItem
 import com.example.ui.viewmodel.MainViewModel
+import com.example.widget.WidgetThemes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,6 +80,7 @@ fun MainScreen(
     val exposedCount by viewModel.exposedItemsCount.collectAsState()
     val intervalMinutes by viewModel.intervalMinutes.collectAsState()
     val cycleMode by viewModel.cycleMode.collectAsState()
+    val widgetTheme by viewModel.widgetTheme.collectAsState()
     val simulatedItem by viewModel.simulatedItem.collectAsState()
     val simulatedChapterName by viewModel.simulatedChapterName.collectAsState()
     val isScheduleModeEnabled by viewModel.isScheduleModeEnabled.collectAsState()
@@ -86,6 +91,7 @@ fun MainScreen(
     val aiImportState by viewModel.aiImportState.collectAsState()
     val aiTitle by viewModel.aiTitle.collectAsState()
     val aiItems by viewModel.aiItems.collectAsState()
+    val appLanguage by viewModel.appLanguage.collectAsState()
 
     var currentTab by rememberSaveable { mutableStateOf(0) } // 0 = Chapters, 1 = Items, 2 = Schedule, 3 = Widget Config
     
@@ -98,6 +104,7 @@ fun MainScreen(
     var isSearchActive by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var showSettingsDialog by remember { mutableStateOf(false) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
 
     // Share / Import State
     var exportChapterName by remember { mutableStateOf<String?>(null) }
@@ -108,7 +115,7 @@ fun MainScreen(
     var showAddItemDialog by remember { mutableStateOf(false) }
     var itemToEdit by remember { mutableStateOf<VocabItem?>(null) }
 
-    val activeChapterName = chapters.find { it.id == selectedChapterId }?.name ?: "No Chapter Selected"
+    val activeChapterName = chapters.find { it.id == selectedChapterId }?.name ?: stringResource(R.string.no_chapter_selected)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -130,7 +137,7 @@ fun MainScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.back),
                             tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
@@ -138,7 +145,7 @@ fun MainScreen(
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
-                        placeholder = { Text("Search Japanese words...", fontSize = 14.sp) },
+                        placeholder = { Text(stringResource(R.string.search_hint), fontSize = 14.sp) },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Search,
@@ -151,7 +158,7 @@ fun MainScreen(
                                 IconButton(onClick = { searchQuery = "" }) {
                                     Icon(
                                         imageVector = Icons.Default.Close,
-                                        contentDescription = "Clear",
+                                        contentDescription = stringResource(R.string.clear),
                                         tint = MaterialTheme.colorScheme.outline
                                     )
                                 }
@@ -216,7 +223,18 @@ fun MainScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Search,
-                                contentDescription = "Search",
+                                contentDescription = stringResource(R.string.search),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = { showLanguageDialog = true },
+                            modifier = Modifier.size(36.dp).testTag("top_language_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Translate,
+                                contentDescription = stringResource(R.string.language_button),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -227,7 +245,7 @@ fun MainScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Settings,
-                                contentDescription = "Settings",
+                                contentDescription = stringResource(R.string.settings),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -244,45 +262,35 @@ fun MainScreen(
                 NavigationBarItem(
                     selected = currentTab == 0,
                     onClick = { currentTab = 0 },
-                    icon = { Icon(Icons.Outlined.Folder, contentDescription = "Chapters") },
-                    label = { Text("Chapters") },
+                    icon = { Icon(Icons.Outlined.Folder, contentDescription = stringResource(R.string.tab_chapters)) },
+                    label = { Text(stringResource(R.string.tab_chapters)) },
                     modifier = Modifier.testTag("tab_chapters")
                 )
                 NavigationBarItem(
                     selected = currentTab == 1,
                     onClick = { currentTab = 1 },
-                    icon = { Icon(Icons.Outlined.Book, contentDescription = "Vocabulary") },
-                    label = { Text("Items") },
+                    icon = { Icon(Icons.Outlined.Book, contentDescription = stringResource(R.string.tab_items_icon)) },
+                    label = { Text(stringResource(R.string.tab_items)) },
                     modifier = Modifier.testTag("tab_items")
                 )
                 NavigationBarItem(
                     selected = currentTab == 2,
                     onClick = { currentTab = 2 },
-                    icon = { Icon(Icons.Outlined.CalendarMonth, contentDescription = "Schedule") },
-                    label = { Text("Schedule") },
+                    icon = { Icon(Icons.Outlined.CalendarMonth, contentDescription = stringResource(R.string.tab_schedule)) },
+                    label = { Text(stringResource(R.string.tab_schedule)) },
                     modifier = Modifier.testTag("tab_schedule")
                 )
                 NavigationBarItem(
                     selected = currentTab == 3,
                     onClick = { currentTab = 3 },
-                    icon = { Icon(Icons.Outlined.Widgets, contentDescription = "Widget Config") },
-                    label = { Text("Widget") },
+                    icon = { Icon(Icons.Outlined.Widgets, contentDescription = stringResource(R.string.tab_widget_icon)) },
+                    label = { Text(stringResource(R.string.tab_widget)) },
                     modifier = Modifier.testTag("tab_widget")
                 )
             }
         },
         floatingActionButton = {
-            if (currentTab == 0) {
-                FloatingActionButton(
-                    onClick = { showAddChapterDialog = true },
-                    containerColor = SleekFabBg,
-                    contentColor = SleekFabIcon,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.testTag("add_chapter_fab")
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = "Add Chapter", modifier = Modifier.size(28.dp))
-                }
-            } else if (currentTab == 1 && selectedChapterId != null) {
+            if (currentTab == 1 && selectedChapterId != null) {
                 Column(
                     horizontalAlignment = Alignment.End,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -294,7 +302,7 @@ fun MainScreen(
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.testTag("add_item_fab")
                     ) {
-                        Icon(Icons.Filled.Add, contentDescription = "Add Vocabulary", modifier = Modifier.size(28.dp))
+                        Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_vocabulary), modifier = Modifier.size(28.dp))
                     }
                     ExtendedFloatingActionButton(
                         onClick = { showAiImport = true },
@@ -305,7 +313,7 @@ fun MainScreen(
                     ) {
                         Icon(Icons.Filled.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Scan List", fontSize = 13.sp)
+                        Text(stringResource(R.string.scan_list), fontSize = 13.sp)
                     }
                 }
             }
@@ -325,6 +333,7 @@ fun MainScreen(
                         viewModel.selectChapter(id)
                         currentTab = 1 // Smoothly jump to items when chapter is clicked
                     },
+                    onCreateChapter = { showAddChapterDialog = true },
                     onToggleExposure = { viewModel.toggleChapterExposure(it) },
                     onDeleteChapter = { viewModel.deleteChapter(it) },
                     onExportChapter = { chapter ->
@@ -334,7 +343,7 @@ fun MainScreen(
                                 exportedShareCode = code
                                 exportChapterName = chapter.name
                             } else {
-                                Toast.makeText(context, "Error exporting chapter.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.export_error), Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
@@ -361,10 +370,12 @@ fun MainScreen(
                     exposedCount = exposedCount,
                     intervalMinutes = intervalMinutes,
                     cycleMode = cycleMode,
+                    widgetTheme = widgetTheme,
                     simulatedItem = simulatedItem,
                     simulatedChapterName = simulatedChapterName,
                     onIntervalChange = { viewModel.updateInterval(it) },
                     onCycleModeChange = { viewModel.updateCycleMode(it) },
+                    onWidgetThemeChange = { viewModel.updateWidgetTheme(it) },
                     onForceCycle = { viewModel.triggerForceCycle() }
                 )
             }
@@ -379,12 +390,16 @@ fun MainScreen(
                 viewModel.addChapter(name)
                 showAddChapterDialog = false
             },
+            onScanAi = {
+                showAddChapterDialog = false
+                showAiImport = true
+            },
             onImportConfirm = { shareCode, onResult ->
                 scope.launch {
                     val success = viewModel.importChapter(shareCode)
                     onResult(success)
                     if (success) {
-                        Toast.makeText(context, "Chapter imported successfully!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.chapter_imported), Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -406,7 +421,7 @@ fun MainScreen(
     // Dialog: Add Item
     if (showAddItemDialog) {
         AddEditItemDialog(
-            title = "Add New Word",
+            title = stringResource(R.string.add_new_word),
             onDismiss = { showAddItemDialog = false },
             onConfirm = { word, reading, meaning, type, notes, exampleSentence ->
                 viewModel.addItem(word, reading, meaning, type, notes, exampleSentence)
@@ -418,7 +433,7 @@ fun MainScreen(
     // Dialog: Edit Item
     itemToEdit?.let { item ->
         AddEditItemDialog(
-            title = "Edit Word Details",
+            title = stringResource(R.string.edit_word_details),
             initialWord = item.word,
             initialReading = item.reading,
             initialMeaning = item.meaning,
@@ -446,6 +461,18 @@ fun MainScreen(
                 viewModel.resetDatabase()
                 showSettingsDialog = false
             }
+        )
+    }
+
+    if (showLanguageDialog) {
+        LanguageDialog(
+            current = appLanguage,
+            onSelect = { code ->
+                viewModel.setAppLanguage(code)
+                showLanguageDialog = false
+                (context as? Activity)?.recreate()
+            },
+            onDismiss = { showLanguageDialog = false }
         )
     }
 
@@ -479,9 +506,9 @@ fun MainScreen(
                     if (chapterCreated) {
                         showAiImport = false
                         currentTab = 1
-                        Toast.makeText(context, "Chapter created from your photo!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.chapter_created), Toast.LENGTH_SHORT).show()
                     } else {
-                        Toast.makeText(context, "Select at least one entry to import.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.select_entry_to_import), Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -498,6 +525,7 @@ fun ChaptersTabContent(
     selectedChapterId: Int?,
     searchQuery: String = "",
     onSelectChapter: (Int) -> Unit,
+    onCreateChapter: () -> Unit,
     onToggleExposure: (Chapter) -> Unit,
     onDeleteChapter: (Chapter) -> Unit,
     onExportChapter: (Chapter) -> Unit
@@ -510,44 +538,63 @@ fun ChaptersTabContent(
         }
     }
 
-    if (chapters.isEmpty()) {
-        EmptyStateView(
-            icon = Icons.Outlined.FolderOpen,
-            title = "No Chapters Yet",
-            description = "Chapters let you segment vocabularies (e.g. 'Genki Ch 1', 'N5 Verbs'). Tap the '+' button below to create your first chapter."
-        )
-    } else if (filteredChapters.isEmpty()) {
-        EmptyStateView(
-            icon = Icons.Outlined.SearchOff,
-            title = "No Chapters Found",
-            description = "No chapters matched your search query '$searchQuery'. Try checking for typos or searching something else."
-        )
-    } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                Text(
-                    text = if (searchQuery.isBlank()) "Manage Chapters" else "Search Results",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            }
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (chapters.isEmpty()) {
+            EmptyStateView(
+                icon = Icons.Outlined.FolderOpen,
+                title = stringResource(R.string.no_chapters_yet),
+                description = stringResource(R.string.no_chapters_yet_hint)
+            )
+        } else if (filteredChapters.isEmpty()) {
+            EmptyStateView(
+                icon = Icons.Outlined.SearchOff,
+                title = stringResource(R.string.no_chapters_found),
+                description = stringResource(R.string.no_chapters_found_hint, searchQuery)
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                item {
+                    Text(
+                        text = if (searchQuery.isBlank()) stringResource(R.string.manage_chapters) else stringResource(R.string.search_results),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
 
-            items(filteredChapters, key = { it.id }) { chapter ->
-                val isSelected = chapter.id == selectedChapterId
-                ChapterCard(
-                    chapter = chapter,
-                    isSelected = isSelected,
-                    onSelect = { onSelectChapter(chapter.id) },
-                    onToggleExposure = { onToggleExposure(chapter) },
-                    onDelete = { onDeleteChapter(chapter) },
-                    onExport = { onExportChapter(chapter) }
-                )
+                items(filteredChapters, key = { it.id }) { chapter ->
+                    val isSelected = chapter.id == selectedChapterId
+                    ChapterCard(
+                        chapter = chapter,
+                        isSelected = isSelected,
+                        onSelect = { onSelectChapter(chapter.id) },
+                        onToggleExposure = { onToggleExposure(chapter) },
+                        onDelete = { onDeleteChapter(chapter) },
+                        onExport = { onExportChapter(chapter) }
+                    )
+                }
             }
+        }
+
+        Button(
+            onClick = onCreateChapter,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 16.dp)
+                .fillMaxWidth()
+                .height(56.dp)
+                .testTag("create_chapter_cta"),
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = SleekFabBg, contentColor = SleekFabIcon)
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(stringResource(R.string.new_chapter_cta), fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -567,7 +614,7 @@ fun ChapterCard(
     val containerColor = if (isExposed) {
         MaterialTheme.colorScheme.surfaceVariant
     } else {
-        Color.White
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
     }
 
     val borderStroke = when {
@@ -639,7 +686,7 @@ fun ChapterCard(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = if (isExposed) "Exposed & Active" else "Paused & Hidden",
+                    text = if (isExposed) stringResource(R.string.exposed_active) else stringResource(R.string.paused_hidden),
                     fontSize = 12.sp,
                     color = if (isExposed) {
                         MaterialTheme.colorScheme.primary
@@ -661,7 +708,7 @@ fun ChapterCard(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Share,
-                        contentDescription = "Share Chapter",
+                        contentDescription = stringResource(R.string.share_chapter),
                         tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                         modifier = Modifier.size(20.dp)
                     )
@@ -674,7 +721,7 @@ fun ChapterCard(
                 ) {
                     Icon(
                         imageVector = if (isExposed) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                        contentDescription = "Toggle Exposure",
+                        contentDescription = stringResource(R.string.toggle_exposure),
                         tint = if (isExposed) {
                             MaterialTheme.colorScheme.primary
                         } else {
@@ -691,7 +738,7 @@ fun ChapterCard(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Delete,
-                        contentDescription = "Delete Chapter",
+                        contentDescription = stringResource(R.string.delete_chapter),
                         tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
                         modifier = Modifier.size(20.dp)
                     )
@@ -703,8 +750,8 @@ fun ChapterCard(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete Chapter?") },
-            text = { Text("Deleting '${chapter.name}' will also delete all of its vocabulary and Kanji items. This action cannot be undone.") },
+            title = { Text(stringResource(R.string.delete_chapter_title)) },
+            text = { Text(stringResource(R.string.delete_chapter_body, chapter.name)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -713,12 +760,12 @@ fun ChapterCard(
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Delete")
+                    Text(stringResource(R.string.delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -746,8 +793,8 @@ fun ItemsTabContent(
     if (chapters.isEmpty()) {
         EmptyStateView(
             icon = Icons.Outlined.Folder,
-            title = "Create a Chapter First",
-            description = "You need a chapter folder before you can start adding vocabulary or Kanji lists."
+            title = stringResource(R.string.create_chapter_first),
+            description = stringResource(R.string.need_chapter_first)
         )
         return
     }
@@ -769,7 +816,7 @@ fun ItemsTabContent(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text("Selected Chapter", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline)
+                    Text(stringResource(R.string.selected_chapter), fontSize = 11.sp, color = MaterialTheme.colorScheme.outline)
                     Text(
                         text = activeChapterName,
                         fontSize = 16.sp,
@@ -777,7 +824,7 @@ fun ItemsTabContent(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
-                Icon(Icons.Filled.ArrowDropDown, contentDescription = "Choose Chapter")
+                Icon(Icons.Filled.ArrowDropDown, contentDescription = stringResource(R.string.choose_chapter))
             }
 
             DropdownMenu(
@@ -816,19 +863,19 @@ fun ItemsTabContent(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             FilterTabButton(
-                text = "All (${items.size})",
+                text = stringResource(R.string.all_filter) + " (${items.size})",
                 selected = selectedTypeFilter == "all",
                 onClick = { selectedTypeFilter = "all" },
                 modifier = Modifier.weight(1f)
             )
             FilterTabButton(
-                text = "Vocab (${items.count { it.type == "vocab" }})",
+                text = stringResource(R.string.vocab_filter) + " (${items.count { it.type == "vocab" }})",
                 selected = selectedTypeFilter == "vocab",
                 onClick = { selectedTypeFilter = "vocab" },
                 modifier = Modifier.weight(1f)
             )
             FilterTabButton(
-                text = "Kanji (${items.count { it.type == "kanji" }})",
+                text = stringResource(R.string.kanji_filter) + " (${items.count { it.type == "kanji" }})",
                 selected = selectedTypeFilter == "kanji",
                 onClick = { selectedTypeFilter = "kanji" },
                 modifier = Modifier.weight(1f)
@@ -858,14 +905,14 @@ fun ItemsTabContent(
         if (items.isEmpty()) {
             EmptyStateView(
                 icon = Icons.Outlined.Spellcheck,
-                title = "No Words Yet",
-                description = "Tap the '+' button below to add custom words, hiragana reading, and translation definitions to this chapter."
+                title = stringResource(R.string.no_words_yet),
+                description = stringResource(R.string.no_words_hint)
             )
         } else if (filteredItems.isEmpty()) {
             EmptyStateView(
                 icon = Icons.Outlined.SearchOff,
-                title = "No Matching Words",
-                description = "We couldn't find any words matching '$searchQuery' in this chapter. Try searching something else."
+                title = stringResource(R.string.no_matching_words),
+                description = stringResource(R.string.no_matching_hint, searchQuery)
             )
         } else {
             LazyColumn(
@@ -987,14 +1034,14 @@ fun VocabItemRow(
                     ) {
                         Icon(
                             imageVector = if (item.isExposed) Icons.Filled.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
-                            contentDescription = "Toggle exposure",
+                            contentDescription = stringResource(R.string.toggle_item_exposure),
                             tint = if (item.isExposed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
                         )
                     }
 
                     Icon(
                         imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = "Expand info",
+                        contentDescription = stringResource(R.string.expand_info),
                         tint = MaterialTheme.colorScheme.outline,
                         modifier = Modifier.size(20.dp)
                     )
@@ -1015,7 +1062,7 @@ fun VocabItemRow(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(bottom = 8.dp))
 
                     Text(
-                        text = "Meaning",
+                        text = stringResource(R.string.meaning),
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.outline,
                         fontWeight = FontWeight.Bold
@@ -1030,7 +1077,7 @@ fun VocabItemRow(
 
                     if (item.notes.isNotBlank()) {
                         Text(
-                            text = "Notes",
+                            text = stringResource(R.string.notes),
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.outline,
                             fontWeight = FontWeight.Bold
@@ -1045,7 +1092,7 @@ fun VocabItemRow(
 
                     if (item.exampleSentence.isNotBlank()) {
                         Text(
-                            text = "Example Sentence",
+                            text = stringResource(R.string.example_sentence),
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.outline,
                             fontWeight = FontWeight.Bold
@@ -1071,7 +1118,7 @@ fun VocabItemRow(
                         ) {
                             Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Edit")
+                            Text(stringResource(R.string.edit))
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         TextButton(
@@ -1080,7 +1127,7 @@ fun VocabItemRow(
                         ) {
                             Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Delete")
+                            Text(stringResource(R.string.delete))
                         }
                     }
                 }
@@ -1097,12 +1144,15 @@ fun WidgetSettingsTabContent(
     exposedCount: Int,
     intervalMinutes: Int,
     cycleMode: String,
+    widgetTheme: String,
     simulatedItem: VocabItem?,
     simulatedChapterName: String?,
     onIntervalChange: (Int) -> Unit,
     onCycleModeChange: (String) -> Unit,
+    onWidgetThemeChange: (String) -> Unit,
     onForceCycle: () -> Unit
 ) {
+    val palette = WidgetThemes.byKey(widgetTheme)
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -1110,12 +1160,12 @@ fun WidgetSettingsTabContent(
     ) {
         item {
             Text(
-                text = "Lockscreen Simulation",
+                text = stringResource(R.string.lockscreen_simulation),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "Live preview of what is currently exposed under your device clock.",
+                text = stringResource(R.string.lockscreen_preview_hint),
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.padding(bottom = 4.dp)
@@ -1129,8 +1179,8 @@ fun WidgetSettingsTabContent(
                     .fillMaxWidth()
                     .testTag("lockscreen_simulation_widget"),
                 shape = RoundedCornerShape(28.dp),
-                colors = CardDefaults.cardColors(containerColor = SleekWidgetBg),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                colors = CardDefaults.cardColors(containerColor = Color(palette.background)),
+                border = BorderStroke(1.dp, Color(palette.chapter).copy(alpha = 0.5f)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
                 Column(
@@ -1148,13 +1198,13 @@ fun WidgetSettingsTabContent(
                             Icon(
                                 imageVector = Icons.Default.Lock,
                                 contentDescription = null,
-                                tint = SleekWidgetAccent,
+                                tint = Color(palette.reading),
                                 modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "ACTIVE WIDGET",
-                                color = Color(0xFFCAC4D0),
+                                text = stringResource(R.string.active_widget),
+                                color = Color(palette.chapter),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 letterSpacing = 1.5.sp
@@ -1162,7 +1212,7 @@ fun WidgetSettingsTabContent(
                         }
                         Text(
                             text = "14:42",
-                            color = Color(0xFFCAC4D0),
+                            color = Color(palette.chapter),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Normal
                         )
@@ -1181,13 +1231,13 @@ fun WidgetSettingsTabContent(
                                 text = simulatedItem.word,
                                 fontSize = 40.sp,
                                 fontWeight = FontWeight.Light,
-                                color = Color.White,
+                                color = Color(palette.word),
                                 letterSpacing = 1.sp
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = "${simulatedItem.reading.uppercase()} • ${simulatedItem.meaning.uppercase()}",
-                                color = SleekWidgetAccent,
+                                color = Color(palette.reading),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
                                 letterSpacing = 0.7.sp
@@ -1197,12 +1247,12 @@ fun WidgetSettingsTabContent(
                                 modifier = Modifier
                                     .height(1.dp)
                                     .width(48.dp)
-                                    .background(Color.White.copy(alpha = 0.2f))
+                                    .background(Color(palette.chapter).copy(alpha = 0.4f))
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = simulatedChapterName?.let { "Chapter: $it" } ?: "Chapter: Exposed List",
-                                color = SleekInactive,
+                                text = simulatedChapterName?.let { stringResource(R.string.chapter_prefix) + it } ?: stringResource(R.string.chapter_exposed_list),
+                                color = Color(palette.chapter),
                                 fontSize = 11.sp,
                                 fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
                             )
@@ -1211,13 +1261,13 @@ fun WidgetSettingsTabContent(
                                 text = "学習",
                                 fontSize = 40.sp,
                                 fontWeight = FontWeight.Light,
-                                color = Color.White.copy(alpha = 0.35f),
+                                color = Color(palette.word).copy(alpha = 0.35f),
                                 letterSpacing = 1.sp
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = "GAKUSHŪ • STUDY",
-                                color = SleekWidgetAccent.copy(alpha = 0.5f),
+                                color = Color(palette.reading).copy(alpha = 0.5f),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
                                 letterSpacing = 0.7.sp
@@ -1227,12 +1277,12 @@ fun WidgetSettingsTabContent(
                                 modifier = Modifier
                                     .height(1.dp)
                                     .width(48.dp)
-                                    .background(Color.White.copy(alpha = 0.15f))
+                                    .background(Color(palette.chapter).copy(alpha = 0.3f))
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "No active words exposed",
-                                color = SleekInactive.copy(alpha = 0.6f),
+                                text = stringResource(R.string.no_active_words),
+                                color = Color(palette.chapter).copy(alpha = 0.6f),
                                 fontSize = 11.sp,
                                 fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
                             )
@@ -1240,6 +1290,77 @@ fun WidgetSettingsTabContent(
                     }
                     
                     Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
+        }
+
+        // Widget Theme
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = stringResource(R.string.widget_theme),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.widget_theme_hint),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        WidgetThemes.all.forEach { theme ->
+                            val isSelected = theme.key == widgetTheme
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Surface(
+                                    onClick = { onWidgetThemeChange(theme.key) },
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color(theme.background),
+                                    contentColor = Color(theme.reading),
+                                    border = BorderStroke(
+                                        if (isSelected) 2.dp else 1.dp,
+                                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                                    ),
+                                    modifier = Modifier
+                                        .size(width = 56.dp, height = 64.dp)
+                                        .testTag("widget_theme_${theme.key}")
+                                ) {
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        if (isSelected) {
+                                            Icon(
+                                                Icons.Default.Check,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        } else {
+                                            Text("A", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = theme.key.replaceFirstChar { it.uppercase() },
+                                    fontSize = 10.sp,
+                                    color = if (isSelected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.outline
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1252,7 +1373,7 @@ fun WidgetSettingsTabContent(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Exposed Vocabulary Pool",
+                        text = stringResource(R.string.exposed_pool),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -1263,7 +1384,7 @@ fun WidgetSettingsTabContent(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Items currently exposed:",
+                            text = stringResource(R.string.items_exposed),
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1273,7 +1394,7 @@ fun WidgetSettingsTabContent(
                             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                         ) {
                             Text(
-                                text = "$exposedCount words",
+                                text = stringResource(R.string.exposed_words_count, exposedCount),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -1287,12 +1408,12 @@ fun WidgetSettingsTabContent(
         // Interval Setting
         item {
             Text(
-                text = "Rotation Time Interval",
+                text = stringResource(R.string.rotation_interval),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "Choose how frequently the word cycles on the widget.",
+                text = stringResource(R.string.rotation_interval_hint),
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.padding(bottom = 8.dp)
@@ -1343,12 +1464,12 @@ fun WidgetSettingsTabContent(
         // Cycle Order Mode
         item {
             Text(
-                text = "Rotation Mode",
+                text = stringResource(R.string.rotation_mode),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "Choose whether cards cycle sequentially or randomly.",
+                text = stringResource(R.string.rotation_mode_hint),
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.padding(bottom = 8.dp)
@@ -1368,7 +1489,7 @@ fun WidgetSettingsTabContent(
                 ) {
                     Icon(Icons.Default.CompareArrows, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Sequential")
+                    Text(stringResource(R.string.sequential))
                 }
 
                 OutlinedButton(
@@ -1381,7 +1502,7 @@ fun WidgetSettingsTabContent(
                 ) {
                     Icon(Icons.Default.Shuffle, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Random")
+                    Text(stringResource(R.string.random))
                 }
             }
         }
@@ -1399,7 +1520,7 @@ fun WidgetSettingsTabContent(
             ) {
                 Icon(Icons.Default.Loop, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Rotate Now", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.rotate_now), fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -1456,11 +1577,13 @@ fun EmptyStateView(
 fun AddChapterDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
-    onImportConfirm: (String, (Boolean) -> Unit) -> Unit
+    onImportConfirm: (String, (Boolean) -> Unit) -> Unit,
+    onScanAi: () -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(0) } // 0 = Create, 1 = Import
     var name by remember { mutableStateOf("") }
     var isError by remember { mutableStateOf(false) }
+    val dialogContext = LocalContext.current
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -1475,12 +1598,29 @@ fun AddChapterDialog(
                     .padding(20.dp)
             ) {
                 Text(
-                    text = if (selectedTab == 0) "Add New Chapter" else "Import Shared Chapter",
+                    text = if (selectedTab == 0) stringResource(R.string.add_new_chapter) else stringResource(R.string.import_shared_chapter),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedButton(
+                    onClick = onScanAi,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .testTag("scan_ai_pill"),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Filled.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.scan_ai_button), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Segmented control or choice buttons
                 Row(
@@ -1490,13 +1630,13 @@ fun AddChapterDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilterTabButton(
-                        text = "New Chapter",
+                        text = stringResource(R.string.new_chapter),
                         selected = selectedTab == 0,
                         onClick = { selectedTab = 0 },
                         modifier = Modifier.weight(1f)
                     )
                     FilterTabButton(
-                        text = "Import Code",
+                        text = stringResource(R.string.import_code),
                         selected = selectedTab == 1,
                         onClick = { selectedTab = 1 },
                         modifier = Modifier.weight(1f)
@@ -1510,8 +1650,8 @@ fun AddChapterDialog(
                             name = it
                             if (it.isNotBlank()) isError = false
                         },
-                        label = { Text("Chapter Name") },
-                        placeholder = { Text("e.g. Genki Chapter 1") },
+                        label = { Text(stringResource(R.string.chapter_name_label)) },
+                        placeholder = { Text(stringResource(R.string.chapter_name_hint)) },
                         isError = isError,
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().testTag("dialog_chapter_input")
@@ -1519,7 +1659,7 @@ fun AddChapterDialog(
 
                     if (isError) {
                         Text(
-                            text = "Name cannot be blank.",
+                            text = stringResource(R.string.name_blank_error),
                             color = MaterialTheme.colorScheme.error,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(top = 4.dp)
@@ -1533,7 +1673,7 @@ fun AddChapterDialog(
                         horizontalArrangement = Arrangement.End
                     ) {
                         TextButton(onClick = onDismiss) {
-                            Text("Cancel")
+                            Text(stringResource(R.string.cancel))
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Button(
@@ -1547,7 +1687,7 @@ fun AddChapterDialog(
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                             modifier = Modifier.testTag("dialog_chapter_confirm")
                         ) {
-                            Text("Create")
+                            Text(stringResource(R.string.create))
                         }
                     }
                 } else {
@@ -1557,7 +1697,7 @@ fun AddChapterDialog(
 
                     Column {
                         Text(
-                            text = "Paste the shared chapter code below to import it.",
+                            text = stringResource(R.string.import_code_hint),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.outline,
                             modifier = Modifier.padding(bottom = 8.dp)
@@ -1569,8 +1709,8 @@ fun AddChapterDialog(
                                 shareCode = it
                                 importError = null
                             },
-                            label = { Text("Shared Chapter Code") },
-                            placeholder = { Text("Paste long code here...") },
+                            label = { Text(stringResource(R.string.shared_code_label)) },
+                            placeholder = { Text(stringResource(R.string.paste_code_hint)) },
                             isError = importError != null,
                             maxLines = 5,
                             modifier = Modifier
@@ -1595,19 +1735,19 @@ fun AddChapterDialog(
                             horizontalArrangement = Arrangement.End
                         ) {
                             TextButton(onClick = onDismiss) {
-                                Text("Cancel")
+                                Text(stringResource(R.string.cancel))
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Button(
                                 onClick = {
                                     if (shareCode.trim().isBlank()) {
-                                        importError = "Code cannot be empty."
+                                        importError = dialogContext.getString(R.string.code_empty_error)
                                     } else {
                                         onImportConfirm(shareCode.trim()) { success ->
                                             if (success) {
                                                 onDismiss()
                                             } else {
-                                                importError = "Invalid code. Please make sure you copied it correctly."
+                                                importError = dialogContext.getString(R.string.code_invalid_error)
                                             }
                                         }
                                     }
@@ -1615,7 +1755,7 @@ fun AddChapterDialog(
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                 modifier = Modifier.testTag("dialog_chapter_import_confirm")
                             ) {
-                                Text("Import")
+                                Text(stringResource(R.string.import_btn))
                             }
                         }
                     }
@@ -1679,13 +1819,13 @@ fun AddEditItemDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilterTabButton(
-                        text = "Vocab",
+                        text = stringResource(R.string.vocab_type),
                         selected = type == "vocab",
                         onClick = { type = "vocab" },
                         modifier = Modifier.weight(1f)
                     )
                     FilterTabButton(
-                        text = "Kanji",
+                        text = stringResource(R.string.kanji_type),
                         selected = type == "kanji",
                         onClick = { type = "kanji" },
                         modifier = Modifier.weight(1f)
@@ -1699,14 +1839,14 @@ fun AddEditItemDialog(
                         word = it
                         if (it.isNotBlank()) isWordError = false
                     },
-                    label = { Text(if (type == "kanji") "Kanji Word" else "Vocabulary Word") },
-                    placeholder = { Text(if (type == "kanji") "e.g. 日" else "e.g. 日本語") },
+                    label = { Text(if (type == "kanji") stringResource(R.string.kanji_word_label) else stringResource(R.string.vocabulary_word_label)) },
+                    placeholder = { Text(if (type == "kanji") stringResource(R.string.word_kanji_hint) else stringResource(R.string.word_vocab_hint)) },
                     isError = isWordError,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().testTag("dialog_item_word_input")
                 )
                 if (isWordError) {
-                    Text("Word cannot be empty", color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
+                    Text(stringResource(R.string.word_empty_error), color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -1718,14 +1858,14 @@ fun AddEditItemDialog(
                         reading = it
                         if (it.isNotBlank()) isReadingError = false
                     },
-                    label = { Text("Reading (Kana)") },
-                    placeholder = { Text(if (type == "kanji") "e.g. ひ / にち" else "e.g. にほんご") },
+                    label = { Text(stringResource(R.string.reading_label)) },
+                    placeholder = { Text(if (type == "kanji") stringResource(R.string.reading_kanji_hint) else stringResource(R.string.reading_vocab_hint)) },
                     isError = isReadingError,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().testTag("dialog_item_reading_input")
                 )
                 if (isReadingError) {
-                    Text("Reading cannot be empty", color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
+                    Text(stringResource(R.string.reading_empty_error), color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -1737,14 +1877,14 @@ fun AddEditItemDialog(
                         meaning = it
                         if (it.isNotBlank()) isMeaningError = false
                     },
-                    label = { Text("Translation / Meaning") },
-                    placeholder = { Text("e.g. Day / Sun" + if (type == "kanji") "" else " or Japanese language") },
+                    label = { Text(stringResource(R.string.translation_label)) },
+                    placeholder = { Text(stringResource(R.string.meaning_hint_start) + if (type == "kanji") "" else stringResource(R.string.meaning_hint_end)) },
                     isError = isMeaningError,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().testTag("dialog_item_meaning_input")
                 )
                 if (isMeaningError) {
-                    Text("Meaning cannot be empty", color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
+                    Text(stringResource(R.string.meaning_empty_error), color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -1753,8 +1893,8 @@ fun AddEditItemDialog(
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
-                    label = { Text("Notes (Optional)") },
-                    placeholder = { Text("e.g. Ru-verb, used for eating.") },
+                    label = { Text(stringResource(R.string.notes_optional)) },
+                    placeholder = { Text(stringResource(R.string.notes_hint)) },
                     maxLines = 2,
                     modifier = Modifier.fillMaxWidth().testTag("dialog_item_notes_input")
                 )
@@ -1765,8 +1905,8 @@ fun AddEditItemDialog(
                 OutlinedTextField(
                     value = exampleSentence,
                     onValueChange = { exampleSentence = it },
-                    label = { Text("Example Sentence (Optional)") },
-                    placeholder = { Text("e.g. ご飯を食べる。") },
+                    label = { Text(stringResource(R.string.example_optional)) },
+                    placeholder = { Text(stringResource(R.string.example_hint)) },
                     maxLines = 2,
                     modifier = Modifier.fillMaxWidth().testTag("dialog_item_example_input")
                 )
@@ -1778,7 +1918,7 @@ fun AddEditItemDialog(
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.cancel))
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
@@ -1795,7 +1935,7 @@ fun AddEditItemDialog(
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         modifier = Modifier.testTag("dialog_item_confirm")
                     ) {
-                        Text("Save")
+                        Text(stringResource(R.string.save))
                     }
                 }
             }
@@ -1841,7 +1981,7 @@ fun SettingsDialog(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "App Settings",
+                        text = stringResource(R.string.app_settings),
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
@@ -1866,14 +2006,14 @@ fun SettingsDialog(
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Text(
-                                    text = "Komorebi v1.1.0",
+                                    text = stringResource(R.string.settings_version),
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "A passive learning tool that cycles custom Japanese vocabularies & Kanji on your home screen or lock screen widgets.",
+                                    text = stringResource(R.string.settings_about),
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     lineHeight = 16.sp
@@ -1899,7 +2039,7 @@ fun SettingsDialog(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "Gemini AI Import",
+                                        text = stringResource(R.string.gemini_ai_import),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
@@ -1908,9 +2048,9 @@ fun SettingsDialog(
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = if (hasApiKey) {
-                                        "API key set. You can scan vocabulary lists from a photo."
+                                        stringResource(R.string.api_key_set)
                                     } else {
-                                        "No API key yet. AI photo import stays locked until you add one."
+                                        stringResource(R.string.api_key_missing)
                                     },
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1932,7 +2072,7 @@ fun SettingsDialog(
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text(if (hasApiKey) "Change API Key" else "Add API Key", fontSize = 13.sp)
+                                    Text(if (hasApiKey) stringResource(R.string.change_api_key) else stringResource(R.string.add_api_key), fontSize = 13.sp)
                                 }
                             }
                         }
@@ -1942,18 +2082,14 @@ fun SettingsDialog(
                     item {
                         Column {
                             Text(
-                                text = "How to Setup Widget",
+                                text = stringResource(R.string.how_to_setup_widget),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "1. Go to your Android Home Screen.\n" +
-                                       "2. Press and hold on an empty space.\n" +
-                                       "3. Select 'Widgets' (or 'Add widgets').\n" +
-                                       "4. Search or scroll to find 'Komorebi'.\n" +
-                                       "5. Drag the widget onto your home screen or lockscreen slot.",
+                                text = stringResource(R.string.how_to_widget),
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 lineHeight = 18.sp
@@ -1965,13 +2101,13 @@ fun SettingsDialog(
                     item {
                         Column {
                             Text(
-                                text = "Database & Seed Utilities",
+                                text = stringResource(R.string.db_seed_utilities),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Manage the local SQLite database storing your Japanese word lists.",
+                                text = stringResource(R.string.db_seed_description),
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.outline,
                                 modifier = Modifier.padding(bottom = 8.dp)
@@ -1986,7 +2122,7 @@ fun SettingsDialog(
                             ) {
                                 Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Load Sample Vocab", fontSize = 13.sp)
+                                Text(stringResource(R.string.load_sample), fontSize = 13.sp)
                             }
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -2001,7 +2137,7 @@ fun SettingsDialog(
                             ) {
                                 Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Reset Data", fontSize = 13.sp)
+                                Text(stringResource(R.string.reset_data), fontSize = 13.sp)
                             }
                         }
                     }
@@ -2015,7 +2151,7 @@ fun SettingsDialog(
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Close")
+                        Text(stringResource(R.string.close))
                     }
                 }
             }
@@ -2025,8 +2161,8 @@ fun SettingsDialog(
     if (showResetConfirm) {
         AlertDialog(
             onDismissRequest = { showResetConfirm = false },
-            title = { Text("Reset Database?") },
-            text = { Text("Are you sure you want to completely erase your Japanese vocabulary database? This action is permanent and will delete all custom lists, chapters, and items.") },
+            title = { Text(stringResource(R.string.reset_db_title)) },
+            text = { Text(stringResource(R.string.reset_db_body)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -2035,12 +2171,12 @@ fun SettingsDialog(
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Reset Everything")
+                    Text(stringResource(R.string.reset_everything))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showResetConfirm = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -2084,7 +2220,7 @@ fun ExportChapterDialog(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Share Chapter",
+                        text = stringResource(R.string.share_chapter),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
@@ -2094,7 +2230,7 @@ fun ExportChapterDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "Share your vocabulary lists of '$chapterName' with your friends using this compact share code.",
+                    text = stringResource(R.string.export_share_body, chapterName),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 16.sp
@@ -2133,14 +2269,14 @@ fun ExportChapterDialog(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Close")
+                        Text(stringResource(R.string.close))
                     }
 
                     Button(
                         onClick = {
                             val clipData = ClipData.newPlainText("Komorebi Chapter Share Code", shareCode)
                             clipboardManager.setPrimaryClip(clipData)
-                            Toast.makeText(context, "Share code copied to clipboard!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.code_copied), Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
@@ -2148,7 +2284,7 @@ fun ExportChapterDialog(
                     ) {
                         Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Copy Code")
+                        Text(stringResource(R.string.copy_code))
                     }
                 }
             }
@@ -2165,17 +2301,15 @@ fun ScheduleTabContent(
     onToggleSchedule: (Boolean) -> Unit,
     onAssign: (Int, Int) -> Unit
 ) {
-    val daysOfWeek = remember {
-        listOf(
-            1 to "Monday",
-            2 to "Tuesday",
-            3 to "Wednesday",
-            4 to "Thursday",
-            5 to "Friday",
-            6 to "Saturday",
-            7 to "Sunday"
-        )
-    }
+    val daysOfWeek = listOf(
+        1 to stringResource(R.string.day_monday),
+        2 to stringResource(R.string.day_tuesday),
+        3 to stringResource(R.string.day_wednesday),
+        4 to stringResource(R.string.day_thursday),
+        5 to stringResource(R.string.day_friday),
+        6 to stringResource(R.string.day_saturday),
+        7 to stringResource(R.string.day_sunday)
+    )
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -2184,13 +2318,13 @@ fun ScheduleTabContent(
     ) {
         item {
             Text(
-                text = "Daily Schedule Planner",
+                text = stringResource(R.string.schedule_planner),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = "Assign a specific chapter to each day of the week to automatically filter widget items.",
+                text = stringResource(R.string.schedule_planner_hint),
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.padding(bottom = 8.dp)
@@ -2224,13 +2358,13 @@ fun ScheduleTabContent(
                         )
                         Column {
                             Text(
-                                text = "Schedule Mode",
+                                text = stringResource(R.string.schedule_mode),
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = if (isScheduleEnabled) "Active (Filtering by Day)" else "Disabled (Rotating All Exposed)",
+                                text = if (isScheduleEnabled) stringResource(R.string.schedule_active) else stringResource(R.string.schedule_disabled),
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.outline
                             )
@@ -2247,7 +2381,7 @@ fun ScheduleTabContent(
 
         item {
             Text(
-                text = "Weekly Assignments",
+                text = stringResource(R.string.weekly_assignments),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground,
@@ -2348,7 +2482,7 @@ fun ScheduleTabContent(
                                 }
                             } else {
                                 Text(
-                                    text = "All Exposed (Fallback)",
+                                    text = stringResource(R.string.all_exposed_fallback),
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.outline,
                                     style = androidx.compose.ui.text.TextStyle(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
@@ -2366,7 +2500,7 @@ fun ScheduleTabContent(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ArrowDropDown,
-                                contentDescription = "Assign Chapter",
+                                contentDescription = stringResource(R.string.assign_chapter),
                                 tint = if (isScheduleEnabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline
                             )
                         }
@@ -2376,7 +2510,7 @@ fun ScheduleTabContent(
                             onDismissRequest = { showDropdown = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("None (rotate all)") },
+                                text = { Text(stringResource(R.string.none_rotate_all)) },
                                 onClick = {
                                     onAssign(dayNum, -1)
                                     showDropdown = false
@@ -2434,7 +2568,7 @@ fun GeminiKeyDialog(
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "Gemini API Key",
+                        text = stringResource(R.string.gemini_api_key),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -2442,8 +2576,7 @@ fun GeminiKeyDialog(
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "Enter a free Google AI Studio API key to unlock photo import of vocab lists. " +
-                        "The key is stored only on this device. You can skip this for now and add it later from Settings.",
+                    text = stringResource(R.string.gemini_key_desc),
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 18.sp
@@ -2455,8 +2588,8 @@ fun GeminiKeyDialog(
                         key = it
                         if (it.isNotBlank()) isError = false
                     },
-                    label = { Text("API Key") },
-                    placeholder = { Text("AIza...") },
+                    label = { Text(stringResource(R.string.api_key_label)) },
+                    placeholder = { Text(stringResource(R.string.ai_key_hint)) },
                     isError = isError,
                     singleLine = true,
                     visualTransformation = if (showKey) VisualTransformation.None else PasswordVisualTransformation(),
@@ -2464,7 +2597,7 @@ fun GeminiKeyDialog(
                         IconButton(onClick = { showKey = !showKey }) {
                             Icon(
                                 imageVector = if (showKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = if (showKey) "Hide key" else "Show key",
+                                contentDescription = if (showKey) stringResource(R.string.hide_key) else stringResource(R.string.show_key),
                                 tint = MaterialTheme.colorScheme.outline
                             )
                         }
@@ -2477,7 +2610,7 @@ fun GeminiKeyDialog(
                 )
                 if (isError) {
                     Text(
-                        text = "Please paste a valid key.",
+                        text = stringResource(R.string.key_invalid_error),
                         color = MaterialTheme.colorScheme.error,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(top = 4.dp)
@@ -2489,7 +2622,7 @@ fun GeminiKeyDialog(
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Not now")
+                        Text(stringResource(R.string.not_now))
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
@@ -2503,7 +2636,7 @@ fun GeminiKeyDialog(
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         modifier = Modifier.testTag("api_key_save_button")
                     ) {
-                        Text("Save")
+                        Text(stringResource(R.string.save))
                     }
                 }
             }
@@ -2567,7 +2700,7 @@ fun AiImportScreen(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "AI Photo Import",
+                            text = stringResource(R.string.ai_photo_import),
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onBackground
@@ -2576,7 +2709,7 @@ fun AiImportScreen(
                     IconButton(onClick = onClose) {
                         Icon(
                             Icons.Default.Close,
-                            contentDescription = "Close",
+                            contentDescription = stringResource(R.string.close),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -2589,7 +2722,7 @@ fun AiImportScreen(
                                 CircularProgressIndicator()
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(
-                                    text = "Extracting vocabulary...",
+                                    text = stringResource(R.string.extracting_vocab),
                                     fontSize = 14.sp,
                                     color = MaterialTheme.colorScheme.outline
                                 )
@@ -2613,7 +2746,7 @@ fun AiImportScreen(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "Extraction failed",
+                                text = stringResource(R.string.extraction_failed),
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -2628,9 +2761,9 @@ fun AiImportScreen(
                             Button(onClick = onRetry) {
                                 Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Try Again")
+                                Text(stringResource(R.string.try_again))
                             }
-                            TextButton(onClick = onClose) { Text("Cancel") }
+                            TextButton(onClick = onClose) { Text(stringResource(R.string.cancel)) }
                         }
                     }
 
@@ -2639,7 +2772,7 @@ fun AiImportScreen(
                             OutlinedTextField(
                                 value = aiTitle,
                                 onValueChange = onTitleChange,
-                                label = { Text("Chapter Title") },
+                                label = { Text(stringResource(R.string.chapter_title_label)) },
                                 singleLine = true,
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -2648,7 +2781,7 @@ fun AiImportScreen(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Review the entries below. Uncheck any you don't want, or tap edit to fix details.",
+                                text = stringResource(R.string.review_entries_hint),
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.outline,
                                 modifier = Modifier.padding(horizontal = 16.dp)
@@ -2702,7 +2835,7 @@ fun AiImportScreen(
                                             IconButton(onClick = { itemToEdit = index to draft }) {
                                                 Icon(
                                                     Icons.Default.Edit,
-                                                    contentDescription = "Edit entry",
+                                                    contentDescription = stringResource(R.string.edit_entry),
                                                     tint = MaterialTheme.colorScheme.primary,
                                                     modifier = Modifier.size(18.dp)
                                                 )
@@ -2710,7 +2843,7 @@ fun AiImportScreen(
                                             IconButton(onClick = { onRemoveItem(index) }) {
                                                 Icon(
                                                     Icons.Default.Delete,
-                                                    contentDescription = "Remove entry",
+                                                    contentDescription = stringResource(R.string.remove_entry),
                                                     tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
                                                     modifier = Modifier.size(18.dp)
                                                 )
@@ -2727,7 +2860,7 @@ fun AiImportScreen(
                                         .padding(16.dp)
                                 ) {
                                     Text(
-                                        text = "${aiItems.count { it.selected }} of ${aiItems.size} selected",
+                                        text = stringResource(R.string.selected_count, aiItems.count { it.selected }, aiItems.size),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Medium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -2741,7 +2874,7 @@ fun AiImportScreen(
                                             },
                                             shape = RoundedCornerShape(12.dp)
                                         ) {
-                                            Text("New Photo")
+                                            Text(stringResource(R.string.new_photo))
                                         }
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Button(
@@ -2759,7 +2892,7 @@ fun AiImportScreen(
                                                 modifier = Modifier.size(18.dp)
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
-                                            Text("Create Chapter", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                            Text(stringResource(R.string.create_chapter), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
@@ -2776,7 +2909,7 @@ fun AiImportScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "Scan a photo of a Japanese vocab list",
+                                text = stringResource(R.string.scan_photo_title),
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -2784,7 +2917,7 @@ fun AiImportScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Pick an image, let the AI extract each entry, then review, edit, and turn it into a chapter.",
+                                text = stringResource(R.string.scan_photo_hint),
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.outline,
                                 textAlign = TextAlign.Center,
@@ -2801,7 +2934,7 @@ fun AiImportScreen(
                                 ) {
                                     Image(
                                         bitmap = previewBitmap!!.asImageBitmap(),
-                                        contentDescription = "Selected photo",
+                                        contentDescription = stringResource(R.string.selected_photo),
                                         modifier = Modifier.fillMaxSize(),
                                         contentScale = ContentScale.Fit
                                     )
@@ -2825,7 +2958,7 @@ fun AiImportScreen(
                                         )
                                         Spacer(modifier = Modifier.height(8.dp))
                                         Text(
-                                            text = "No photo selected",
+                                            text = stringResource(R.string.no_photo_selected),
                                             color = MaterialTheme.colorScheme.outline,
                                             fontSize = 12.sp
                                         )
@@ -2848,7 +2981,7 @@ fun AiImportScreen(
                             ) {
                                 Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Choose Photo", fontSize = 14.sp)
+                                Text(stringResource(R.string.choose_photo), fontSize = 14.sp)
                             }
 
                             if (previewBitmap != null && pickedUri != null) {
@@ -2863,11 +2996,11 @@ fun AiImportScreen(
                                     ) {
                                         Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text("Add Gemini API Key", fontSize = 14.sp)
+                                        Text(stringResource(R.string.add_gemini_api_key), fontSize = 14.sp)
                                     }
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        text = "Extraction is locked until an API key is added.",
+                                        text = stringResource(R.string.extraction_locked),
                                         fontSize = 11.sp,
                                         color = MaterialTheme.colorScheme.outline,
                                         textAlign = TextAlign.Center
@@ -2885,7 +3018,7 @@ fun AiImportScreen(
                                     ) {
                                         Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text("Extract Words", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                        Text(stringResource(R.string.extract_words), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -2893,7 +3026,7 @@ fun AiImportScreen(
                             if (geminiKey == null && previewBitmap == null) {
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Text(
-                                    text = "AI needs a Gemini API key to read photos. You can skip it and enable this feature later from Settings.",
+                                    text = stringResource(R.string.ai_needs_key),
                                     fontSize = 11.sp,
                                     color = MaterialTheme.colorScheme.outline,
                                     textAlign = TextAlign.Center
@@ -2918,7 +3051,7 @@ fun AiImportScreen(
 
     itemToEdit?.let { (index, draft) ->
         AddEditItemDialog(
-            title = "Edit Extracted Entry",
+            title = stringResource(R.string.edit_extracted_entry),
             initialWord = draft.word,
             initialReading = draft.reading,
             initialMeaning = draft.meaning,
@@ -2941,6 +3074,95 @@ fun AiImportScreen(
                 itemToEdit = null
             }
         )
+    }
+}
+
+@Composable
+fun LanguageDialog(
+    current: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .testTag("language_dialog")
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Outlined.Translate,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = stringResource(R.string.lang_section),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.lang_section_hint),
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 18.sp
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                listOf("en" to R.string.english, "my" to R.string.burmese).forEach { (code, labelRes) ->
+                    val selected = code == current
+                    Surface(
+                        onClick = { onSelect(code) },
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (selected) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                        },
+                        contentColor = if (selected) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(stringResource(labelRes), fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                            if (selected) {
+                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.close))
+                    }
+                }
+            }
+        }
     }
 }
 

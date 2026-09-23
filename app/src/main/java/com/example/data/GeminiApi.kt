@@ -22,15 +22,49 @@ object GeminiApi {
         "https://generativelanguage.googleapis.com/v1beta/models/$MODEL:generateContent"
     private const val TIMEOUT_MS = 90_000
     private const val TAG = "GeminiApi"
+    private const val MAX_ATTEMPTS = 3
+    private const val RETRY_DELAY_MS = 1_200L
 
-    private val PROMPT = """
+    /**
+     * OpenAPI subset describing the exact JSON shape Gemini must return. Combined
+     * with [RESPONSE_MIME_TYPE] this makes the API emit strictly valid JSON that
+     * matches our schema, instead of free-form text we have to guess around.
+     */
+    internal fun buildResponseSchema(): JSONObject = JSONObject()
+        .put("type", "OBJECT")
+        .put("properties", JSONObject()
+            .put("title", JSONObject().put("type", "STRING"))
+            .put("items", JSONObject()
+                .put("type", "ARRAY")
+                .put("items", JSONObject()
+                    .put("type", "OBJECT")
+                    .put("properties", JSONObject()
+                        .put("word", JSONObject().put("type", "STRING"))
+                        .put("reading", JSONObject().put("type", "STRING"))
+                        .put("meaning", JSONObject().put("type", "STRING"))
+                        .put("type", JSONObject().put("type", "STRING"))
+                        .put("notes", JSONObject().put("type", "STRING"))
+                        .put("example", JSONObject().put("type", "STRING"))
+                    )
+                )
+            )
+        )
+        .put("required", JSONArray().put("title").put("items"))
+
+    private fun buildPrompt(meaningLanguage: String): String {
+        val meaningInstruction = if (meaningLanguage == "my") {
+            "- \"meaning\": a concise Burmese (Unicode Myanmar script) translation"
+        } else {
+            "- \"meaning\": a concise English translation"
+        }
+        return """
         You are importing a photo of a Japanese vocabulary list into a flashcard app.
         Read carefully EVERY word entry visible in the image and return it as JSON.
 
         For each entry extract:
         - "word": the Japanese term exactly as written (a kanji character, word, or phrase)
         - "reading": the kana (hiragana or katakana) reading, e.g. にほんご
-        - "meaning": a concise English translation
+        $meaningInstruction
         - "type": "kanji" only when the entry is a single standalone kanji character;
           otherwise "vocab"
         - "notes": any extra text printed next to the entry (e.g. an N-level tag or a
@@ -45,26 +79,51 @@ object GeminiApi {
         Use exactly this shape:
         {"title":"...","items":[{"word":"...","reading":"...","meaning":"...","type":"vocab","notes":"...","example":"..."}]}
     """.trimIndent()
+    }
 
     /**
      * Sends the image to Gemini and returns the parsed extraction.
+     *
+     * The output is forced to strict JSON via [RESPONSE_MIME_TYPE] + a response
+     * schema, and any malformed response is retried (with backoff) a few times
+     * before giving up, so an occasional flaky model reply never reaches the user.
+     *
+     * @param meaningLanguage "en" for English meanings, "my" for Burmese meanings.
      * @throws IOException if the request fails or the model returns no text.
-     * @throws IllegalStateException if the response is not valid vocabulary JSON.
+     * @throws IllegalStateException only after every attempt returned invalid JSON.
      */
-    suspend fun extractVocabulary(imageBytes: ByteArray, mimeType: String, apiKey: String): AiExtraction {
-        val rawText = withContext(Dispatchers.IO) {
-            postGenerateContent(imageBytes, mimeType, apiKey)
+    suspend fun extractVocabulary(
+        imageBytes: ByteArray,
+        mimeType: String,
+        apiKey: String,
+        meaningLanguage: String = "en"
+    ): AiExtraction {
+        val prompt = buildPrompt(meaningLanguage)
+        var lastRaw: String? = null
+        repeat(MAX_ATTEMPTS) { attempt ->
+            val rawText = withContext(Dispatchers.IO) {
+                postGenerateContent(imageBytes, mimeType, apiKey, prompt)
+            }
+            val parsed = GeminiParser.parse(rawText)
+            if (parsed != null) return parsed
+
+            Log.w(TAG, "Malformed JSON from model on attempt ${attempt + 1}/$MAX_ATTEMPTS. Retrying.")
+            lastRaw = rawText
+            if (attempt < MAX_ATTEMPTS - 1) {
+                withContext(Dispatchers.IO) { Thread.sleep(RETRY_DELAY_MS) }
+            }
         }
-        return GeminiParser.parse(rawText)
-            ?: throw IllegalStateException(
-                "The AI response was not valid vocabulary JSON. Please try again."
-            )
+        Log.w(TAG, "All attempts failed. Raw response snippet: ${lastRaw?.take(300)}")
+        throw IllegalStateException(
+            "The AI response was not valid vocabulary JSON. Please try again."
+        )
     }
 
     private fun postGenerateContent(
         imageBytes: ByteArray,
         mimeType: String,
-        apiKey: String
+        apiKey: String,
+        prompt: String
     ): String {
         val requestBody = JSONObject()
             .put(
@@ -81,7 +140,7 @@ object GeminiApi {
                                         )
                                 )
                             )
-                            .put(JSONObject().put("text", PROMPT))
+                            .put(JSONObject().put("text", prompt))
                     )
                 )
             )
@@ -89,6 +148,8 @@ object GeminiApi {
                 "generationConfig", JSONObject()
                     .put("temperature", 0.1)
                     .put("maxOutputTokens", 8192)
+                    .put("responseMimeType", "application/json")
+                    .put("responseSchema", buildResponseSchema())
                     .put("thinkingConfig", JSONObject().put("thinkingBudget", 0))
             )
 
